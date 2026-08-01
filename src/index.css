@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+/* Custom utility styles if needed, e.g., aspect ratios, custom vertical scrolling for TikTok feed */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
