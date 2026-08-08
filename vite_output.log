@@ -1,0 +1,10 @@
+
+> avitok@1.0.0 dev
+> vite
+
+
+  VITE v5.4.21  ready in 351 ms
+
+  ➜  Local:   http://localhost:3000/
+  ➜  Network: http://192.168.0.2:3000/
+6:53:00 PM [vite] hmr update /src/App.jsx, /src/index.css
