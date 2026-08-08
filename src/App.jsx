@@ -19,7 +19,9 @@ import {
   Sparkles,
   X,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  Info,
+  Check
 } from 'lucide-react';
 
 // --- MOCK INITIAL DATA ---
@@ -116,9 +118,29 @@ const INITIAL_LISTINGS = [
   }
 ];
 
+const INITIAL_CHATS = [
+  {
+    id: 101,
+    listingId: 1,
+    listingTitle: "iPhone 15 Pro Max 256GB • Идеал",
+    listingPrice: 95000,
+    seller: {
+      name: "Дмитрий",
+      rating: 4.9,
+      reviews: 32,
+      avatarUrl: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80"
+    },
+    messages: [
+      { id: 1, sender: 'seller', text: 'Здравствуйте! Интересует айфон?', timestamp: 'Вчера, 14:00' },
+      { id: 2, sender: 'user', text: 'Добрый день! Да, актуально?', timestamp: 'Вчера, 14:02' },
+      { id: 3, sender: 'seller', text: 'Да, всё в силе. Готов встретиться сегодня.', timestamp: 'Вчера, 14:05' }
+    ],
+    isTyping: false
+  }
+];
+
 const CATEGORIES = ["Все", "Электроника", "Транспорт", "Недвижимость", "Услуги", "Одежда"];
 
-// Preset image and video recommendation selections for listing creation
 const PRESET_ASSETS = [
   {
     category: "Электроника",
@@ -148,35 +170,43 @@ const PRESET_ASSETS = [
 ];
 
 export default function App() {
-  // --- STATE ---
+  // --- LOCALSTORAGE PERSISTENT STATES ---
+  const [listings, setListings] = useState(() => {
+    const saved = localStorage.getItem('avitok_listings');
+    return saved ? JSON.parse(saved) : INITIAL_LISTINGS;
+  });
+
+  const [favorites, setFavorites] = useState(() => {
+    const saved = localStorage.getItem('avitok_favorites');
+    return saved ? JSON.parse(saved) : [1, 3];
+  });
+
+  const [chats, setChats] = useState(() => {
+    const saved = localStorage.getItem('avitok_chats');
+    return saved ? JSON.parse(saved) : INITIAL_CHATS;
+  });
+
+  // Synchronize state to LocalStorage
+  useEffect(() => {
+    localStorage.setItem('avitok_listings', JSON.stringify(listings));
+  }, [listings]);
+
+  useEffect(() => {
+    localStorage.setItem('avitok_favorites', JSON.stringify(favorites));
+  }, [favorites]);
+
+  useEffect(() => {
+    localStorage.setItem('avitok_chats', JSON.stringify(chats));
+  }, [chats]);
+
+  // --- GENERAL INTERFACE STATES ---
   const [currentTab, setCurrentTab] = useState('listings'); // 'feed' | 'listings' | 'create' | 'chats' | 'favorites'
-  const [listings, setListings] = useState(INITIAL_LISTINGS);
-  const [favorites, setFavorites] = useState([1, 3]); // default favorited IDs
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Все');
   const [selectedListing, setSelectedListing] = useState(null);
+  const [showBetaGuide, setShowBetaGuide] = useState(true); // default true for first launch, can toggle
 
   // Chat Messenger States
-  const [chats, setChats] = useState([
-    {
-      id: 101,
-      listingId: 1,
-      listingTitle: "iPhone 15 Pro Max 256GB • Идеал",
-      listingPrice: 95000,
-      seller: {
-        name: "Дмитрий",
-        rating: 4.9,
-        reviews: 32,
-        avatarUrl: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80"
-      },
-      messages: [
-        { id: 1, sender: 'seller', text: 'Здравствуйте! Интересует айфон?', timestamp: 'Вчера, 14:00' },
-        { id: 2, sender: 'user', text: 'Добрый день! Да, актуально?', timestamp: 'Вчера, 14:02' },
-        { id: 3, sender: 'seller', text: 'Да, всё в силе. Готов встретиться сегодня.', timestamp: 'Вчера, 14:05' }
-      ],
-      isTyping: false
-    }
-  ]);
   const [activeChatId, setActiveChatId] = useState(null);
   const [messageInput, setMessageInput] = useState('');
 
@@ -219,7 +249,6 @@ export default function App() {
   // Handle playing/pausing of videos in short feed
   useEffect(() => {
     if (currentTab === 'feed') {
-      // Pause all other videos, play current index
       Object.keys(videoRefs.current).forEach((key) => {
         const index = parseInt(key, 10);
         const videoElement = videoRefs.current[index];
@@ -232,7 +261,6 @@ export default function App() {
         }
       });
     } else {
-      // Pause all when switching tabs
       Object.values(videoRefs.current).forEach((vid) => {
         if (vid) vid.pause();
       });
@@ -240,6 +268,20 @@ export default function App() {
   }, [currentTab, currentVideoIndex]);
 
   // --- ACTIONS ---
+
+  // Reset demo data to default state
+  const resetDemoData = () => {
+    if (window.confirm("Вы уверены, что хотите сбросить все данные до начального состояния?")) {
+      localStorage.removeItem('avitok_listings');
+      localStorage.removeItem('avitok_favorites');
+      localStorage.removeItem('avitok_chats');
+      setListings(INITIAL_LISTINGS);
+      setFavorites([1, 3]);
+      setChats(INITIAL_CHATS);
+      setActiveChatId(null);
+      alert("Данные успешно сброшены!");
+    }
+  };
 
   // Toggle Favorite
   const toggleFavorite = (id, e) => {
@@ -253,7 +295,6 @@ export default function App() {
 
   // Open Chat with Seller
   const startChatWithSeller = (listing) => {
-    // Check if chat already exists for this listing
     const existingChat = chats.find(c => c.listingId === listing.id);
     if (existingChat) {
       setActiveChatId(existingChat.id);
@@ -272,8 +313,8 @@ export default function App() {
       setChats([newChat, ...chats]);
       setActiveChatId(newChat.id);
     }
-    setSelectedListing(null); // Close detail modal
-    setCurrentTab('chats'); // Switch to chats tab
+    setSelectedListing(null);
+    setCurrentTab('chats');
   };
 
   // Send Message in Chat
@@ -281,7 +322,6 @@ export default function App() {
     const text = textToSend || messageInput;
     if (!text.trim() || !activeChatId) return;
 
-    // Append user message
     setChats(prevChats => prevChats.map(c => {
       if (c.id === activeChatId) {
         return {
@@ -300,14 +340,13 @@ export default function App() {
       setMessageInput('');
     }
 
-    // Trigger simulated automatic reply
     const chat = chats.find(c => c.id === activeChatId);
     if (!chat) return;
 
     const listing = listings.find(l => l.id === chat.listingId);
     const category = listing ? listing.category : 'Другое';
 
-    let responseText = "Здравствуйте! Спасибо за сообщение. Я обязательно отвечу вам в ближайшее время.";
+    let responseText = "Здравствуйте! Спасибо за интерес. Да, всё в силе. Когда вам было бы удобно встретиться?";
     if (category === "Электроника") {
       responseText = "Привет! Да, телефон в идеале. Любые проверки на месте. Готов уступить 2000 рублей при встрече сегодня у ТЦ Европейский.";
     } else if (category === "Транспорт") {
@@ -342,7 +381,6 @@ export default function App() {
     e.preventDefault();
     if (!newTitle.trim() || !newPrice.trim() || !newDescription.trim()) return;
 
-    // Resolve Image and Video if left empty, based on category presets
     const preset = PRESET_ASSETS.find(p => p.category === newCategory) || PRESET_ASSETS[0];
     const finalImage = newImage.trim() || preset.imageUrl;
     const finalVideo = newVideo.trim() || preset.videoUrl;
@@ -369,7 +407,6 @@ export default function App() {
     setListings([newListing, ...listings]);
     setShowCreateSuccess(true);
 
-    // Reset inputs
     setNewTitle('');
     setNewPrice('');
     setNewDescription('');
@@ -378,7 +415,7 @@ export default function App() {
 
     setTimeout(() => {
       setShowCreateSuccess(false);
-      setCurrentTab('listings'); // Redirect back to listings grid
+      setCurrentTab('listings');
     }, 2000);
   };
 
@@ -421,7 +458,7 @@ export default function App() {
   // Filtered favorite listings
   const favoriteListings = listings.filter(item => favorites.includes(item.id));
 
-  // Video feed filter (all listings that have a video loop)
+  // Video feed filter
   const feedListings = listings.filter(item => !!item.videoUrl);
 
   return (
@@ -429,18 +466,64 @@ export default function App() {
 
       {/* --- TOP STATUS BAR / HEADER --- */}
       {currentTab !== 'feed' && (
-        <header className="flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-800 shrink-0">
-          <div className="flex items-center gap-2">
-            <span className="text-xl font-black bg-gradient-to-r from-blue-400 to-violet-500 bg-clip-text text-transparent tracking-tight">AviTok</span>
-            <div className="flex items-center gap-1 bg-blue-500/10 text-blue-400 text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-blue-500/20">
-              <Sparkles className="w-2.5 h-2.5" />
-              <span>Шоурум</span>
+        <header className="flex flex-col shrink-0 bg-slate-900 border-b border-slate-800">
+          <div className="flex items-center justify-between px-4 py-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xl font-black bg-gradient-to-r from-blue-400 to-violet-500 bg-clip-text text-transparent tracking-tight">AviTok</span>
+              <div className="flex items-center gap-1 bg-blue-500/10 text-blue-400 text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-blue-500/20">
+                <Sparkles className="w-2.5 h-2.5" />
+                <span>Бета v1.1</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              <button
+                onClick={() => setShowBetaGuide(!showBetaGuide)}
+                className={`p-1.5 rounded-lg transition-colors flex items-center gap-1 text-[11px] font-bold ${
+                  showBetaGuide
+                    ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
+                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                }`}
+                title="Инструкция тестирования"
+              >
+                <Info className="w-3.5 h-3.5" />
+                <span>Гид</span>
+              </button>
+              <button
+                onClick={resetDemoData}
+                className="text-[10px] font-medium bg-red-950/30 text-red-400 border border-red-900/30 px-2 py-1 rounded hover:bg-red-950/60"
+              >
+                Сброс
+              </button>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] text-slate-400 font-medium">Безопасная сделка</span>
-            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
-          </div>
+
+          {/* --- COLLAPSIBLE BETA-TESTING USER GUIDE --- */}
+          {showBetaGuide && (
+            <div className="mx-4 mb-3 p-3 bg-blue-950/25 border border-blue-500/20 rounded-xl space-y-2 animate-slide-up text-left">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-blue-300 flex items-center gap-1">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Руководство для бета-тестера:
+                </span>
+                <button
+                  onClick={() => setShowBetaGuide(false)}
+                  className="text-slate-400 hover:text-white"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              <ul className="text-[10px] text-slate-300 space-y-1.5 list-disc pl-3">
+                <li><strong className="text-white">Лента (TikTok):</strong> Вертикальные ролики, лайки, комментарии. Кнопка <span className="text-blue-400">"Купить товар"</span> мгновенно откроет детальнее!</li>
+                <li><strong className="text-white">Объявления (Avito):</strong> Удобный поиск по тексту, горизонтальные фильтры, карточки с подробным описанием и кнопкой вызова чата.</li>
+                <li><strong className="text-white">Создать:</strong> Заполните форму для размещения. Если фото/видео не указаны, сработает автоматический подбор красивых медиа!</li>
+                <li><strong className="text-white">Сообщения:</strong> Напишите продавцу! Кнопки быстрого ответа помогут мгновенно получить уникальный ответ от продавца в реальном времени.</li>
+              </ul>
+
+              <p className="text-[9px] text-slate-400 italic">Все внесённые изменения сохраняются на вашем устройстве с помощью LocalStorage.</p>
+            </div>
+          )}
         </header>
       )}
 
@@ -458,7 +541,6 @@ export default function App() {
               </div>
             ) : (
               <div className="h-full w-full relative">
-                {/* Active Video Player */}
                 {feedListings.map((item, idx) => {
                   if (idx !== currentVideoIndex) return null;
                   return (
@@ -481,13 +563,22 @@ export default function App() {
 
                       {/* Header overlay */}
                       <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-20 bg-gradient-to-b from-black/60 to-transparent p-2 rounded-xl">
-                        <button
-                          className="flex items-center gap-1.5 text-xs font-semibold bg-slate-900/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-slate-700/50"
-                          onClick={() => setCurrentTab('listings')}
-                        >
-                          <ArrowLeft className="w-3.5 h-3.5" />
-                          <span>На авито-поиск</span>
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            className="flex items-center gap-1.5 text-xs font-semibold bg-slate-900/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-slate-700/50 text-white"
+                            onClick={() => setCurrentTab('listings')}
+                          >
+                            <ArrowLeft className="w-3.5 h-3.5" />
+                            <span>Поиск</span>
+                          </button>
+
+                          <button
+                            className="p-1.5 bg-blue-600/80 hover:bg-blue-500 text-white rounded-full backdrop-blur-sm"
+                            onClick={() => setShowBetaGuide(!showBetaGuide)}
+                          >
+                            <Info className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
 
                         <button
                           className="p-2 rounded-full bg-slate-900/80 backdrop-blur-md border border-slate-700/50 text-white"
@@ -499,7 +590,6 @@ export default function App() {
 
                       {/* Right Hand Interaction Bar */}
                       <div className="absolute right-4 bottom-24 flex flex-col items-center gap-6 z-20">
-                        {/* Seller profile bubble */}
                         <div className="relative mb-2">
                           <img
                             src={item.seller.avatarUrl}
@@ -618,7 +708,6 @@ export default function App() {
 
                 {/* Comments List */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
-                  {/* Hardcoded static comments for realistic depth */}
                   <div className="flex gap-2 text-xs">
                     <img src="https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=100&auto=format&fit=crop&q=80" className="w-8 h-8 rounded-full object-cover shrink-0" />
                     <div>
