@@ -623,7 +623,7 @@ export default function App() {
                             <MessageSquare className="w-5 h-5" />
                           </div>
                           <span className="text-[11px] font-medium text-slate-300">
-                            {(videoComments[item.id] || []).length + 4}
+                            {(videoComments[item.id] || []).length + 2}
                           </span>
                         </button>
 
@@ -697,7 +697,7 @@ export default function App() {
             {showCommentsDrawer && (
               <div className="absolute inset-x-0 bottom-0 bg-slate-900 rounded-t-2xl z-30 flex flex-col h-3/5 border-t border-slate-700 animate-slide-up">
                 <div className="flex items-center justify-between p-4 border-b border-slate-800">
-                  <span className="font-bold text-sm">Комментарии ({ (videoComments[feedListings[currentVideoIndex]?.id] || []).length + 4 })</span>
+                  <span className="font-bold text-sm">Комментарии ({(videoComments[feedListings[currentVideoIndex]?.id] || []).length + 2})</span>
                   <button
                     className="p-1 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white"
                     onClick={() => setShowCommentsDrawer(false)}
