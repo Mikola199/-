@@ -254,7 +254,15 @@ export default function App() {
         const videoElement = videoRefs.current[index];
         if (videoElement) {
           if (index === currentVideoIndex) {
-            videoElement.play().catch((err) => console.log("Auto-play error:", err));
+            videoElement.currentTime = 0;
+            videoElement.play().catch((err) => {
+              // Browser may restrict unmuted autoplay, mute if failed
+              if (videoElement && !videoElement.muted) {
+                videoElement.muted = true;
+                setIsMuted(true);
+                videoElement.play().catch((e) => console.log("Muted retry failed:", e));
+              }
+            });
           } else {
             videoElement.pause();
           }
