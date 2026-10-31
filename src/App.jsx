@@ -21,7 +21,11 @@ import {
   ChevronUp,
   ChevronDown,
   Info,
-  Check
+  ShieldCheck,
+  Truck,
+  Disc3,
+  UserCheck,
+  UserPlus
 } from 'lucide-react';
 
 // --- MOCK INITIAL DATA ---
@@ -31,16 +35,19 @@ const INITIAL_LISTINGS = [
     title: "iPhone 15 Pro Max 256GB • Идеал",
     price: 95000,
     category: "Электроника",
-    description: "Продаю свой iPhone 15 Pro Max на 256 ГБ в идеальном состоянии! Цвет натуральный титан. Состояние аккумулятора 98%, без царапин, сколов и потертостей. Всегда носился в оригинальном чехле и с защитным стеклом премиум-класса. Не вскрывался, все функции (FaceID, TrueTone) работают идеально. Полный комплект с коробкой и оригинальным запечатанным проводом. Пишите, отвечу быстро!",
+    description: "Продаю свой iPhone 15 Pro Max на 256 ГБ в идеальном состоянии! Цвет натуральный титан. Состояние аккумулятора 98%, без царапин, сколов и потертостей. Всегда носился в оригинальном чехле и с защитным стеклом премиум-класса. Не вскрывался, все функции (FaceID, TrueTone) работают идеально. Полный комплект с коробкой и оригинальным запечатанным проводом. Возможна доставка через Авито Сделку с проверкой!",
     location: "Москва, ст. м. Тверская",
     date: "Сегодня, 12:45",
     views: 1240,
+    delivery: true,
+    musicTitle: "Apple Sound - Original Audio",
     imageUrl: "https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=800&auto=format&fit=crop&q=80",
     videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-girl-in-neon-sign-light-looking-at-phone-41858-large.mp4",
     seller: {
       name: "Дмитрий",
       rating: 4.9,
       reviews: 32,
+      verified: true,
       avatarUrl: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80"
     }
   },
@@ -53,12 +60,15 @@ const INITIAL_LISTINGS = [
     location: "Санкт-Петербург, р-н Центральный",
     date: "Вчера, 18:15",
     views: 4320,
+    delivery: false,
+    musicTitle: "M-Power Exhaust Sound - Beat",
     imageUrl: "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?w=800&auto=format&fit=crop&q=80",
     videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-hands-of-a-man-playing-a-racing-video-game-41618-large.mp4",
     seller: {
       name: "Александр",
       rating: 4.8,
       reviews: 14,
+      verified: true,
       avatarUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80"
     }
   },
@@ -71,12 +81,15 @@ const INITIAL_LISTINGS = [
     location: "Химки, ул. Кудрявцева, 10",
     date: "2 дня назад",
     views: 890,
+    delivery: false,
+    musicTitle: "Lofi Cozy Home - Chill Vibe",
     imageUrl: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&auto=format&fit=crop&q=80",
     videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-man-working-on-his-laptop-at-home-41620-large.mp4",
     seller: {
       name: "Екатерина",
       rating: 5.0,
       reviews: 47,
+      verified: true,
       avatarUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80"
     }
   },
@@ -89,12 +102,15 @@ const INITIAL_LISTINGS = [
     location: "Москва, ул. Петровка, 15",
     date: "Сегодня, 10:20",
     views: 340,
+    delivery: false,
+    musicTitle: "Atelier Acoustic Mood",
     imageUrl: "https://images.unsplash.com/photo-1593030103066-0093718efeb9?w=800&auto=format&fit=crop&q=80",
     videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-hands-of-a-tailor-working-on-a-sewing-machine-41611-large.mp4",
     seller: {
       name: "Ателье «Элита»",
       rating: 4.7,
       reviews: 89,
+      verified: true,
       avatarUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80"
     }
   },
@@ -107,12 +123,15 @@ const INITIAL_LISTINGS = [
     location: "Екатеринбург, р-н Ленинский",
     date: "3 дня назад",
     views: 156,
+    delivery: true,
+    musicTitle: "Rock & Roll Classic Riff",
     imageUrl: "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800&auto=format&fit=crop&q=80",
     videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-serving-freshly-brewed-coffee-42417-large.mp4",
     seller: {
       name: "Артем",
       rating: 4.6,
       reviews: 19,
+      verified: false,
       avatarUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80"
     }
   }
@@ -133,7 +152,7 @@ const INITIAL_CHATS = [
     messages: [
       { id: 1, sender: 'seller', text: 'Здравствуйте! Интересует айфон?', timestamp: 'Вчера, 14:00' },
       { id: 2, sender: 'user', text: 'Добрый день! Да, актуально?', timestamp: 'Вчера, 14:02' },
-      { id: 3, sender: 'seller', text: 'Да, всё в силе. Готов встретиться сегодня.', timestamp: 'Вчера, 14:05' }
+      { id: 3, sender: 'seller', text: 'Да, всё в силе. Готов встретиться сегодня или отправить через Авито Доставку.', timestamp: 'Вчера, 14:05' }
     ],
     isTyping: false
   }
@@ -145,27 +164,32 @@ const PRESET_ASSETS = [
   {
     category: "Электроника",
     imageUrl: "https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=800&auto=format&fit=crop&q=80",
-    videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-girl-in-neon-sign-light-looking-at-phone-41858-large.mp4"
+    videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-girl-in-neon-sign-light-looking-at-phone-41858-large.mp4",
+    musicTitle: "Tech Beat Trend"
   },
   {
     category: "Транспорт",
     imageUrl: "https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=800&auto=format&fit=crop&q=80",
-    videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-hands-of-a-man-playing-a-racing-video-game-41618-large.mp4"
+    videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-hands-of-a-man-playing-a-racing-video-game-41618-large.mp4",
+    musicTitle: "Speed Night Sound"
   },
   {
     category: "Недвижимость",
     imageUrl: "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&auto=format&fit=crop&q=80",
-    videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-man-working-on-his-laptop-at-home-41620-large.mp4"
+    videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-man-working-on-his-laptop-at-home-41620-large.mp4",
+    musicTitle: "Interior & Relax"
   },
   {
     category: "Услуги",
     imageUrl: "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800&auto=format&fit=crop&q=80",
-    videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-hands-of-a-tailor-working-on-a-sewing-machine-41611-large.mp4"
+    videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-hands-of-a-tailor-working-on-a-sewing-machine-41611-large.mp4",
+    musicTitle: "Craftsman Groove"
   },
   {
     category: "Одежда",
     imageUrl: "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=800&auto=format&fit=crop&q=80",
-    videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-serving-freshly-brewed-coffee-42417-large.mp4"
+    videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-serving-freshly-brewed-coffee-42417-large.mp4",
+    musicTitle: "Fashion Runway Track"
   }
 ];
 
@@ -186,6 +210,11 @@ export default function App() {
     return saved ? JSON.parse(saved) : INITIAL_CHATS;
   });
 
+  const [following, setFollowing] = useState(() => {
+    const saved = localStorage.getItem('avitok_following');
+    return saved ? JSON.parse(saved) : ["Дмитрий"];
+  });
+
   // Synchronize state to LocalStorage
   useEffect(() => {
     localStorage.setItem('avitok_listings', JSON.stringify(listings));
@@ -199,12 +228,19 @@ export default function App() {
     localStorage.setItem('avitok_chats', JSON.stringify(chats));
   }, [chats]);
 
+  useEffect(() => {
+    localStorage.setItem('avitok_following', JSON.stringify(following));
+  }, [following]);
+
   // --- GENERAL INTERFACE STATES ---
   const [currentTab, setCurrentTab] = useState('listings'); // 'feed' | 'listings' | 'create' | 'chats' | 'favorites'
+  const [feedMode, setFeedMode] = useState('forYou'); // 'forYou' | 'following'
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Все');
   const [selectedListing, setSelectedListing] = useState(null);
-  const [showBetaGuide, setShowBetaGuide] = useState(true); // default true for first launch, can toggle
+  const [showBetaGuide, setShowBetaGuide] = useState(true);
+  const [deliveryModalListing, setDeliveryModalListing] = useState(null);
+  const [deliveryOrderedToast, setDeliveryOrderedToast] = useState(false);
 
   // Chat Messenger States
   const [activeChatId, setActiveChatId] = useState(null);
@@ -213,6 +249,7 @@ export default function App() {
   // TikTok Feed States
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [isMuted, setIsMuted] = useState(true);
+  const [heartPops, setHeartPops] = useState([]); // [{ id, x, y }]
   const [videoComments, setVideoComments] = useState({
     1: [
       { id: 1, user: "Никита", avatar: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100&auto=format&fit=crop&q=80", text: "Аппарат пушка! И ценник адекватный.", date: "2 ч. назад" },
@@ -233,11 +270,31 @@ export default function App() {
   const [newDescription, setNewDescription] = useState('');
   const [newImage, setNewImage] = useState('');
   const [newVideo, setNewVideo] = useState('');
+  const [newDelivery, setNewDelivery] = useState(true);
   const [showCreateSuccess, setShowCreateSuccess] = useState(false);
 
   // References
   const videoRefs = useRef({});
   const chatEndRef = useRef(null);
+  const touchStartY = useRef(null);
+  const lastTapRef = useRef(0);
+
+  // Filter listings based on query and category
+  const filteredListings = listings.filter(item => {
+    const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          item.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = selectedCategory === 'Все' || item.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
+
+  // Filtered favorite listings
+  const favoriteListings = listings.filter(item => favorites.includes(item.id));
+
+  // Video feed filter
+  const allVideoListings = listings.filter(item => !!item.videoUrl);
+  const feedListings = feedMode === 'following'
+    ? allVideoListings.filter(item => following.includes(item.seller.name))
+    : allVideoListings;
 
   // Scroll to chat bottom on new messages
   useEffect(() => {
@@ -265,9 +322,26 @@ export default function App() {
         if (vid) vid.pause();
       });
     }
-  }, [currentTab, currentVideoIndex]);
+  }, [currentTab, currentVideoIndex, feedListings]);
+
+  // Adjust video index if it exceeds filtered feed length
+  useEffect(() => {
+    if (currentVideoIndex >= feedListings.length && feedListings.length > 0) {
+      setCurrentVideoIndex(0);
+    }
+  }, [feedListings.length, currentVideoIndex]);
 
   // --- ACTIONS ---
+
+  // Toggle seller following
+  const toggleFollowSeller = (sellerName, e) => {
+    if (e) e.stopPropagation();
+    if (following.includes(sellerName)) {
+      setFollowing(following.filter(name => name !== sellerName));
+    } else {
+      setFollowing([...following, sellerName]);
+    }
+  };
 
   // Reset demo data to default state
   const resetDemoData = () => {
@@ -275,10 +349,13 @@ export default function App() {
       localStorage.removeItem('avitok_listings');
       localStorage.removeItem('avitok_favorites');
       localStorage.removeItem('avitok_chats');
+      localStorage.removeItem('avitok_following');
       setListings(INITIAL_LISTINGS);
       setFavorites([1, 3]);
       setChats(INITIAL_CHATS);
+      setFollowing(["Дмитрий"]);
       setActiveChatId(null);
+      setCurrentVideoIndex(0);
       alert("Данные успешно сброшены!");
     }
   };
@@ -291,6 +368,78 @@ export default function App() {
     } else {
       setFavorites([...favorites, id]);
     }
+  };
+
+  // Handle Double Tap / Click on Video to Like
+  const handleVideoAreaClick = (e, item) => {
+    const now = Date.now();
+    const timeSinceLastTap = now - lastTapRef.current;
+    if (timeSinceLastTap < 300) {
+      // Double tap triggered
+      if (!favorites.includes(item.id)) {
+        setFavorites([...favorites, item.id]);
+      }
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const newPop = { id: Math.random(), x, y };
+      setHeartPops(prev => [...prev, newPop]);
+      setTimeout(() => {
+        setHeartPops(prev => prev.filter(p => p.id !== newPop.id));
+      }, 800);
+      lastTapRef.current = 0;
+    } else {
+      lastTapRef.current = now;
+      // Single tap toggle play/pause
+      setTimeout(() => {
+        if (lastTapRef.current === now) {
+          const vid = videoRefs.current[currentVideoIndex];
+          if (vid) {
+            if (vid.paused) vid.play();
+            else vid.pause();
+          }
+        }
+      }, 300);
+    }
+  };
+
+  // Switch to Video in Feed from Classified Item
+  const watchListingVideo = (listing) => {
+    const targetIdx = allVideoListings.findIndex(v => v.id === listing.id);
+    if (targetIdx !== -1) {
+      setFeedMode('forYou');
+      setCurrentVideoIndex(targetIdx);
+      setSelectedListing(null);
+      setCurrentTab('feed');
+    }
+  };
+
+  // Wheel navigation in video feed
+  const handleFeedWheel = (e) => {
+    if (Math.abs(e.deltaY) > 40) {
+      if (e.deltaY > 0 && currentVideoIndex < feedListings.length - 1) {
+        setCurrentVideoIndex(prev => prev + 1);
+      } else if (e.deltaY < 0 && currentVideoIndex > 0) {
+        setCurrentVideoIndex(prev => prev - 1);
+      }
+    }
+  };
+
+  // Touch swipe navigation in video feed
+  const handleTouchStart = (e) => {
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchStartY.current === null) return;
+    const touchEndY = e.changedTouches[0].clientY;
+    const diff = touchStartY.current - touchEndY;
+    if (diff > 50 && currentVideoIndex < feedListings.length - 1) {
+      setCurrentVideoIndex(prev => prev + 1);
+    } else if (diff < -50 && currentVideoIndex > 0) {
+      setCurrentVideoIndex(prev => prev - 1);
+    }
+    touchStartY.current = null;
   };
 
   // Open Chat with Seller
@@ -348,15 +497,15 @@ export default function App() {
 
     let responseText = "Здравствуйте! Спасибо за интерес. Да, всё в силе. Когда вам было бы удобно встретиться?";
     if (category === "Электроника") {
-      responseText = "Привет! Да, телефон в идеале. Любые проверки на месте. Готов уступить 2000 рублей при встрече сегодня у ТЦ Европейский.";
+      responseText = "Привет! Да, товар в идеале. Все функции проверены. Могу отправить через Авито Доставку сегодня же!";
     } else if (category === "Транспорт") {
-      responseText = "Добрый день! Машина полностью исправна, кузов в идеале. Осмотр в Приморском районе. Готов на диагностику на любом профильном сервисе.";
+      responseText = "Добрый день! Машина полностью исправна, кузов в идеале. Осмотр в любое время. Готов на диагностику на профильном сервисе.";
     } else if (category === "Недвижимость") {
-      responseText = "Приветствую. Да, квартира реальная, все документы готовы к сделке. Показ возможен завтра после 15:00. Звоните, если хотите договориться подробнее!";
+      responseText = "Приветствую. Да, квартира реальная, все документы готовы к сделке. Показ возможен завтра после 15:00. Звоните!";
     } else if (category === "Услуги") {
-      responseText = "Здравствуйте! Спасибо за обращение. Пошив занимает 10 рабочих дней. Напишите, пожалуйста, ваш номер телефона, я перезвоню и запишу вас на замер.";
+      responseText = "Здравствуйте! Спасибо за обращение. Пошив занимает 10 рабочих дней. Напишите, пожалуйста, ваш номер телефона, я перезвоню.";
     } else if (category === "Одежда") {
-      responseText = "Привет! Замеры: плечи 46см, длина 65см. Отправлю Авито Доставкой сразу в день заказа. Пиши, если оформляешь!";
+      responseText = "Привет! Состояние супер, размер четкий L. Отправлю Авито Доставкой сразу в день заказа. Оформляйте!";
     }
 
     setTimeout(() => {
@@ -384,6 +533,7 @@ export default function App() {
     const preset = PRESET_ASSETS.find(p => p.category === newCategory) || PRESET_ASSETS[0];
     const finalImage = newImage.trim() || preset.imageUrl;
     const finalVideo = newVideo.trim() || preset.videoUrl;
+    const finalMusic = preset.musicTitle || "Original Sound - AviTok";
 
     const newListing = {
       id: Date.now(),
@@ -394,12 +544,15 @@ export default function App() {
       location: "Москва, Центр",
       date: "Только что",
       views: 1,
+      delivery: newDelivery,
+      musicTitle: finalMusic,
       imageUrl: finalImage,
       videoUrl: finalVideo,
       seller: {
         name: "Вы (Продавец)",
         rating: 5.0,
         reviews: 0,
+        verified: true,
         avatarUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"
       }
     };
@@ -416,7 +569,14 @@ export default function App() {
     setTimeout(() => {
       setShowCreateSuccess(false);
       setCurrentTab('listings');
-    }, 2000);
+    }, 1800);
+  };
+
+  // Handle Delivery Order Simulation
+  const handleOrderDelivery = (listing) => {
+    setDeliveryModalListing(null);
+    setDeliveryOrderedToast(true);
+    setTimeout(() => setDeliveryOrderedToast(false), 3500);
   };
 
   // Post Video Comment
@@ -447,36 +607,24 @@ export default function App() {
     setTimeout(() => setShowShareToast(false), 2000);
   };
 
-  // Filter listings based on query and category
-  const filteredListings = listings.filter(item => {
-    const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          item.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'Все' || item.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
-
-  // Filtered favorite listings
-  const favoriteListings = listings.filter(item => favorites.includes(item.id));
-
-  // Video feed filter
-  const feedListings = listings.filter(item => !!item.videoUrl);
-
   return (
-    <div className="flex flex-col h-screen max-w-md mx-auto bg-slate-950 border-x border-slate-800 relative shadow-2xl overflow-hidden font-sans">
+    <div className="flex flex-col h-screen max-w-md mx-auto bg-slate-950 border-x border-slate-800 relative shadow-2xl overflow-hidden font-sans select-none">
 
       {/* --- TOP STATUS BAR / HEADER --- */}
       {currentTab !== 'feed' && (
         <header className="flex flex-col shrink-0 bg-slate-900 border-b border-slate-800">
           <div className="flex items-center justify-between px-4 py-3">
             <div className="flex items-center gap-2">
-              <span className="text-xl font-black bg-gradient-to-r from-blue-400 to-violet-500 bg-clip-text text-transparent tracking-tight">AviTok</span>
+              <span className="text-xl font-black bg-gradient-to-r from-blue-400 via-indigo-400 to-rose-400 bg-clip-text text-transparent tracking-tight">
+                AviTok
+              </span>
               <div className="flex items-center gap-1 bg-blue-500/10 text-blue-400 text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-blue-500/20">
                 <Sparkles className="w-2.5 h-2.5" />
-                <span>Бета v1.1</span>
+                <span>v2.0 Hybrid</span>
               </div>
             </div>
 
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowBetaGuide(!showBetaGuide)}
                 className={`p-1.5 rounded-lg transition-colors flex items-center gap-1 text-[11px] font-bold ${
@@ -484,14 +632,14 @@ export default function App() {
                     ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
                     : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                 }`}
-                title="Инструкция тестирования"
+                title="Гид возможностей"
               >
                 <Info className="w-3.5 h-3.5" />
                 <span>Гид</span>
               </button>
               <button
                 onClick={resetDemoData}
-                className="text-[10px] font-medium bg-red-950/30 text-red-400 border border-red-900/30 px-2 py-1 rounded hover:bg-red-950/60"
+                className="text-[10px] font-medium bg-red-950/30 text-red-400 border border-red-900/30 px-2 py-1 rounded hover:bg-red-950/60 transition-colors"
               >
                 Сброс
               </button>
@@ -504,7 +652,7 @@ export default function App() {
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black text-blue-300 flex items-center gap-1">
                   <Sparkles className="w-3.5 h-3.5" />
-                  Руководство для бета-тестера:
+                  Как работает симбиоз Авито и TikTok:
                 </span>
                 <button
                   onClick={() => setShowBetaGuide(false)}
@@ -515,13 +663,11 @@ export default function App() {
               </div>
 
               <ul className="text-[10px] text-slate-300 space-y-1.5 list-disc pl-3">
-                <li><strong className="text-white">Лента (TikTok):</strong> Вертикальные ролики, лайки, комментарии. Кнопка <span className="text-blue-400">"Купить товар"</span> мгновенно откроет детальнее!</li>
-                <li><strong className="text-white">Объявления (Avito):</strong> Удобный поиск по тексту, горизонтальные фильтры, карточки с подробным описанием и кнопкой вызова чата.</li>
-                <li><strong className="text-white">Создать:</strong> Заполните форму для размещения. Если фото/видео не указаны, сработает автоматический подбор красивых медиа!</li>
-                <li><strong className="text-white">Сообщения:</strong> Напишите продавцу! Кнопки быстрого ответа помогут мгновенно получить уникальный ответ от продавца в реальном времени.</li>
+                <li><strong className="text-white">TikTok-видеолента:</strong> Листайте свайпом или стрелками, переключайтесь между «Для вас» и «Подписки», делайте двойной тап для лайка ❤️, вращается аудио-диск.</li>
+                <li><strong className="text-white">Покупка из видео:</strong> Кликните <span className="text-blue-400 font-bold">«Купить товар»</span> на ролике — откроется полная карточка товара Авито.</li>
+                <li><strong className="text-white">Авито Каталог & Доставка:</strong> Поиск, категории, бейджи безопасной сделки «Авито Доставка», возможность перейти к видеообзору любого товара.</li>
+                <li><strong className="text-white">Интерактивный чат:</strong> Напишите продавцу с умными авто-подсказками и индикатором набора текста.</li>
               </ul>
-
-              <p className="text-[9px] text-slate-400 italic">Все внесённые изменения сохраняются на вашем устройстве с помощью LocalStorage.</p>
             </div>
           )}
         </header>
@@ -532,19 +678,81 @@ export default function App() {
 
         {/* TAB 1: TIKTOK SHORT FEED */}
         {currentTab === 'feed' && (
-          <div className="h-full w-full bg-black relative flex flex-col justify-between overflow-hidden">
+          <div
+            className="h-full w-full bg-black relative flex flex-col justify-between overflow-hidden"
+            onWheel={handleFeedWheel}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+          >
+            {/* Top Navigation in TikTok Feed */}
+            <div className="absolute top-3 inset-x-0 flex items-center justify-between px-4 z-30 pointer-events-auto">
+              <button
+                className="flex items-center gap-1.5 text-xs font-semibold bg-slate-900/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-slate-700/50 text-white"
+                onClick={() => setCurrentTab('listings')}
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Каталог</span>
+              </button>
+
+              {/* Feed Mode Switcher (Following / For You) */}
+              <div className="flex items-center gap-3 text-sm font-bold drop-shadow">
+                <button
+                  onClick={() => {
+                    setFeedMode('following');
+                    setCurrentVideoIndex(0);
+                  }}
+                  className={`transition-colors ${feedMode === 'following' ? 'text-white border-b-2 border-white pb-0.5' : 'text-slate-400 hover:text-slate-200'}`}
+                >
+                  Подписки
+                </button>
+                <span className="text-slate-600 text-xs">|</span>
+                <button
+                  onClick={() => {
+                    setFeedMode('forYou');
+                    setCurrentVideoIndex(0);
+                  }}
+                  className={`transition-colors ${feedMode === 'forYou' ? 'text-white border-b-2 border-white pb-0.5' : 'text-slate-400 hover:text-slate-200'}`}
+                >
+                  Для вас
+                </button>
+              </div>
+
+              <button
+                className="p-2 rounded-full bg-slate-900/80 backdrop-blur-md border border-slate-700/50 text-white"
+                onClick={() => setIsMuted(!isMuted)}
+              >
+                {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+              </button>
+            </div>
+
             {feedListings.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8 text-center">
                 <Video className="w-16 h-16 mb-4 text-slate-600 animate-bounce" />
-                <p className="text-lg font-bold">Видео пока нет</p>
-                <p className="text-sm mt-2">Добавьте своё первое объявление с коротким видеороликом!</p>
+                <p className="text-lg font-bold">Видео в этой ленте нет</p>
+                <p className="text-xs mt-2 text-slate-400">
+                  {feedMode === 'following'
+                    ? 'Вы пока не подписались на продавцов, выкладывающих видео. Переключитесь на «Для вас»!'
+                    : 'Добавьте первое объявление с видеороликом!'}
+                </p>
+                {feedMode === 'following' && (
+                  <button
+                    onClick={() => setFeedMode('forYou')}
+                    className="mt-4 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-full text-xs font-bold"
+                  >
+                    Перейти в «Для вас»
+                  </button>
+                )}
               </div>
             ) : (
               <div className="h-full w-full relative">
                 {feedListings.map((item, idx) => {
                   if (idx !== currentVideoIndex) return null;
                   return (
-                    <div key={item.id} className="absolute inset-0 w-full h-full bg-black flex items-center justify-center">
+                    <div
+                      key={item.id}
+                      className="absolute inset-0 w-full h-full bg-black flex items-center justify-center"
+                      onClick={(e) => handleVideoAreaClick(e, item)}
+                    >
                       <video
                         ref={(el) => { videoRefs.current[idx] = el; }}
                         className="w-full h-full object-cover"
@@ -552,53 +760,39 @@ export default function App() {
                         loop
                         playsInline
                         muted={isMuted}
-                        onClick={() => {
-                          const vid = videoRefs.current[idx];
-                          if (vid) {
-                            if (vid.paused) vid.play();
-                            else vid.pause();
-                          }
-                        }}
                       />
 
-                      {/* Header overlay */}
-                      <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-20 bg-gradient-to-b from-black/60 to-transparent p-2 rounded-xl">
-                        <div className="flex items-center gap-2">
-                          <button
-                            className="flex items-center gap-1.5 text-xs font-semibold bg-slate-900/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-slate-700/50 text-white"
-                            onClick={() => setCurrentTab('listings')}
-                          >
-                            <ArrowLeft className="w-3.5 h-3.5" />
-                            <span>Поиск</span>
-                          </button>
-
-                          <button
-                            className="p-1.5 bg-blue-600/80 hover:bg-blue-500 text-white rounded-full backdrop-blur-sm"
-                            onClick={() => setShowBetaGuide(!showBetaGuide)}
-                          >
-                            <Info className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-
-                        <button
-                          className="p-2 rounded-full bg-slate-900/80 backdrop-blur-md border border-slate-700/50 text-white"
-                          onClick={() => setIsMuted(!isMuted)}
+                      {/* Floating Double Tap Heart Pop Effect */}
+                      {heartPops.map(pop => (
+                        <div
+                          key={pop.id}
+                          style={{ left: pop.x, top: pop.y }}
+                          className="absolute pointer-events-none z-40 animate-heart-pop"
                         >
-                          {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-                        </button>
-                      </div>
+                          <Heart className="w-20 h-20 text-rose-500 fill-current drop-shadow-2xl" />
+                        </div>
+                      ))}
 
                       {/* Right Hand Interaction Bar */}
-                      <div className="absolute right-4 bottom-24 flex flex-col items-center gap-6 z-20">
+                      <div className="absolute right-3 bottom-20 flex flex-col items-center gap-5 z-20 pointer-events-auto" onClick={e => e.stopPropagation()}>
+                        {/* Seller Avatar with Follow Button */}
                         <div className="relative mb-2">
                           <img
                             src={item.seller.avatarUrl}
                             alt={item.seller.name}
-                            className="w-12 h-12 rounded-full border-2 border-blue-500 object-cover"
+                            className="w-11 h-11 rounded-full border-2 border-rose-500 object-cover"
                           />
-                          <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 bg-blue-500 text-[10px] font-bold px-1 rounded-full text-white">
-                            +
-                          </div>
+                          <button
+                            onClick={(e) => toggleFollowSeller(item.seller.name, e)}
+                            className={`absolute -bottom-1.5 left-1/2 -translate-x-1/2 text-[10px] font-bold p-0.5 rounded-full text-white shadow-md transition-all ${
+                              following.includes(item.seller.name)
+                                ? 'bg-emerald-500'
+                                : 'bg-rose-500 hover:scale-110'
+                            }`}
+                            title={following.includes(item.seller.name) ? 'Вы подписаны' : 'Подписаться'}
+                          >
+                            {following.includes(item.seller.name) ? <UserCheck className="w-3 h-3" /> : <UserPlus className="w-3 h-3" />}
+                          </button>
                         </div>
 
                         {/* Likes */}
@@ -606,10 +800,10 @@ export default function App() {
                           className="flex flex-col items-center gap-1 group"
                           onClick={(e) => toggleFavorite(item.id, e)}
                         >
-                          <div className={`p-3 rounded-full transition-all duration-200 ${favorites.includes(item.id) ? 'bg-rose-500 text-white scale-110' : 'bg-slate-900/70 text-slate-200 hover:bg-slate-800'}`}>
+                          <div className={`p-2.5 rounded-full transition-all duration-200 ${favorites.includes(item.id) ? 'bg-rose-500 text-white scale-110 shadow-lg shadow-rose-500/50' : 'bg-slate-900/70 text-slate-200 hover:bg-slate-800'}`}>
                             <Heart className={`w-5 h-5 ${favorites.includes(item.id) ? 'fill-current' : ''}`} />
                           </div>
-                          <span className="text-[11px] font-medium text-slate-300">
+                          <span className="text-[11px] font-bold text-slate-200 drop-shadow">
                             {favorites.includes(item.id) ? '1.4к' : '1.3к'}
                           </span>
                         </button>
@@ -619,10 +813,10 @@ export default function App() {
                           className="flex flex-col items-center gap-1"
                           onClick={() => setShowCommentsDrawer(true)}
                         >
-                          <div className="p-3 rounded-full bg-slate-900/70 text-slate-200 hover:bg-slate-800">
+                          <div className="p-2.5 rounded-full bg-slate-900/70 text-slate-200 hover:bg-slate-800">
                             <MessageSquare className="w-5 h-5" />
                           </div>
-                          <span className="text-[11px] font-medium text-slate-300">
+                          <span className="text-[11px] font-bold text-slate-200 drop-shadow">
                             {(videoComments[item.id] || []).length + 4}
                           </span>
                         </button>
@@ -632,57 +826,82 @@ export default function App() {
                           className="flex flex-col items-center gap-1"
                           onClick={triggerShare}
                         >
-                          <div className="p-3 rounded-full bg-slate-900/70 text-slate-200 hover:bg-slate-800">
+                          <div className="p-2.5 rounded-full bg-slate-900/70 text-slate-200 hover:bg-slate-800">
                             <Share2 className="w-5 h-5" />
                           </div>
-                          <span className="text-[11px] font-medium text-slate-300">Поделиться</span>
+                          <span className="text-[10px] font-bold text-slate-200 drop-shadow">Поделиться</span>
                         </button>
+
+                        {/* TikTok Rotating Vinyl Disc */}
+                        <div className="mt-2 animate-spin-slow p-1 rounded-full bg-gradient-to-tr from-slate-900 to-slate-700 border-2 border-slate-600 shadow-xl">
+                          <Disc3 className="w-7 h-7 text-rose-400" />
+                        </div>
                       </div>
 
                       {/* Bottom Context Info Overlay */}
-                      <div className="absolute bottom-4 left-4 right-20 z-20 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-3 rounded-xl flex flex-col gap-2">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-sm text-white">@{item.seller.name}</span>
-                          <span className="text-[10px] text-blue-300 bg-blue-500/20 px-1.5 py-0.5 rounded-md">Рейтинг {item.seller.rating} ★</span>
+                      <div className="absolute bottom-4 left-3 right-18 z-20 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-3 rounded-2xl flex flex-col gap-2 pointer-events-auto" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-sm text-white drop-shadow">@{item.seller.name}</span>
+                          {item.seller.verified && (
+                            <span className="flex items-center gap-0.5 text-[9px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded font-bold">
+                              <ShieldCheck className="w-2.5 h-2.5" />
+                              Проверен
+                            </span>
+                          )}
+                          <span className="text-[10px] text-amber-300 font-bold bg-amber-500/10 px-1.5 py-0.5 rounded-md">★ {item.seller.rating}</span>
                         </div>
 
-                        <p className="text-xs text-slate-100 line-clamp-2">
-                          {item.title} — {item.description}
+                        <p className="text-xs text-slate-100 font-medium line-clamp-2">
+                          <span className="font-bold">{item.title}</span> — {item.description}
                         </p>
 
-                        <div className="flex items-center gap-2 text-[11px] text-slate-300">
-                          <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                          <span className="truncate">{item.location}</span>
+                        {/* Music ticker */}
+                        <div className="flex items-center gap-1.5 text-[10px] text-slate-300 overflow-hidden">
+                          <Disc3 className="w-3 h-3 text-rose-400 shrink-0 animate-spin" />
+                          <span className="truncate">{item.musicTitle || "Original sound - AviTok"}</span>
                         </div>
 
-                        {/* Floating Product Link */}
+                        <div className="flex items-center gap-2 text-[10px] text-slate-300">
+                          <MapPin className="w-3 h-3 text-rose-400 shrink-0" />
+                          <span className="truncate">{item.location}</span>
+                          {item.delivery && (
+                            <span className="flex items-center gap-1 text-[9px] text-blue-300 bg-blue-500/20 px-1.5 py-0.5 rounded ml-auto">
+                              <Truck className="w-2.5 h-2.5" />
+                              Доставка
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Floating Product Direct Buy Button */}
                         <button
-                          className="mt-2 flex items-center justify-between bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-3 py-2.5 rounded-lg shadow-lg active:scale-95 transition-all w-full"
+                          className="mt-1 flex items-center justify-between bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs px-3.5 py-2.5 rounded-xl shadow-lg active:scale-95 transition-all w-full"
                           onClick={() => setSelectedListing(item)}
                         >
                           <span className="flex items-center gap-1.5">
-                            <ShoppingBag className="w-3.5 h-3.5" />
+                            <ShoppingBag className="w-4 h-4 text-amber-300" />
                             <span>Купить товар</span>
                           </span>
-                          <span className="bg-white/20 px-2 py-0.5 rounded text-[11px]">
+                          <span className="bg-black/30 px-2 py-0.5 rounded text-[11px] font-bold">
                             {item.price.toLocaleString('ru-RU')} ₽
                           </span>
                         </button>
                       </div>
 
                       {/* Video scroll navigation arrows */}
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-2 z-10">
+                      <div className="absolute left-2.5 top-1/2 -translate-y-1/2 flex flex-col gap-2 z-20 pointer-events-auto" onClick={e => e.stopPropagation()}>
                         <button
                           disabled={currentVideoIndex === 0}
-                          className="p-1.5 rounded-full bg-slate-900/60 text-slate-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none"
+                          className="p-1.5 rounded-full bg-slate-900/70 text-slate-300 hover:text-white disabled:opacity-20 disabled:pointer-events-none transition-all"
                           onClick={() => setCurrentVideoIndex(currentVideoIndex - 1)}
+                          title="Предыдущее видео"
                         >
                           <ChevronUp className="w-5 h-5" />
                         </button>
                         <button
                           disabled={currentVideoIndex === feedListings.length - 1}
-                          className="p-1.5 rounded-full bg-slate-900/60 text-slate-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none"
+                          className="p-1.5 rounded-full bg-slate-900/70 text-slate-300 hover:text-white disabled:opacity-20 disabled:pointer-events-none transition-all"
                           onClick={() => setCurrentVideoIndex(currentVideoIndex + 1)}
+                          title="Следующее видео"
                         >
                           <ChevronDown className="w-5 h-5" />
                         </button>
@@ -695,7 +914,7 @@ export default function App() {
 
             {/* Simulated comments drawer */}
             {showCommentsDrawer && (
-              <div className="absolute inset-x-0 bottom-0 bg-slate-900 rounded-t-2xl z-30 flex flex-col h-3/5 border-t border-slate-700 animate-slide-up">
+              <div className="absolute inset-x-0 bottom-0 bg-slate-900 rounded-t-3xl z-40 flex flex-col h-3/5 border-t border-slate-700 animate-slide-up shadow-2xl">
                 <div className="flex items-center justify-between p-4 border-b border-slate-800">
                   <span className="font-bold text-sm">Комментарии ({ (videoComments[feedListings[currentVideoIndex]?.id] || []).length + 4 })</span>
                   <button
@@ -708,14 +927,14 @@ export default function App() {
 
                 {/* Comments List */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
-                  <div className="flex gap-2 text-xs">
+                  <div className="flex gap-2.5 text-xs">
                     <img src="https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=100&auto=format&fit=crop&q=80" className="w-8 h-8 rounded-full object-cover shrink-0" />
                     <div>
                       <p className="font-semibold text-slate-300">Анна К. <span className="text-[10px] text-slate-500 font-normal">3 ч. назад</span></p>
                       <p className="text-slate-100 mt-1">Торг есть? С доставкой отправите?</p>
                     </div>
                   </div>
-                  <div className="flex gap-2 text-xs">
+                  <div className="flex gap-2.5 text-xs">
                     <img src="https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&auto=format&fit=crop&q=80" className="w-8 h-8 rounded-full object-cover shrink-0" />
                     <div>
                       <p className="font-semibold text-slate-300">Сергей <span className="text-[10px] text-slate-500 font-normal">5 ч. назад</span></p>
@@ -725,7 +944,7 @@ export default function App() {
 
                   {/* Dynamic User Comments */}
                   {(videoComments[feedListings[currentVideoIndex]?.id] || []).map(comment => (
-                    <div key={comment.id} className="flex gap-2 text-xs">
+                    <div key={comment.id} className="flex gap-2.5 text-xs">
                       <img src={comment.avatar} className="w-8 h-8 rounded-full object-cover shrink-0" />
                       <div>
                         <p className="font-semibold text-slate-300">{comment.user} <span className="text-[10px] text-slate-500 font-normal">{comment.date}</span></p>
@@ -742,14 +961,14 @@ export default function App() {
                     placeholder="Написать комментарий..."
                     value={newCommentText}
                     onChange={(e) => setNewCommentText(e.target.value)}
-                    className="flex-1 bg-slate-850 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                    className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') addVideoComment(feedListings[currentVideoIndex]?.id);
                     }}
                   />
                   <button
                     onClick={() => addVideoComment(feedListings[currentVideoIndex]?.id)}
-                    className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg text-xs font-bold transition-all"
+                    className="bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-2 rounded-xl text-xs font-bold transition-all"
                   >
                     Отправить
                   </button>
@@ -767,7 +986,7 @@ export default function App() {
             <div className="relative">
               <input
                 type="text"
-                placeholder="Поиск объявлений (например, iPhone, BMW...)"
+                placeholder="Поиск объявлений (iPhone, BMW, студия...)"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 transition-colors"
@@ -812,7 +1031,7 @@ export default function App() {
                   <div
                     key={item.id}
                     onClick={() => setSelectedListing(item)}
-                    className="bg-slate-900 rounded-xl overflow-hidden cursor-pointer border border-slate-800 hover:border-slate-700 transition-all flex flex-col group"
+                    className="bg-slate-900 rounded-2xl overflow-hidden cursor-pointer border border-slate-800 hover:border-slate-700 transition-all flex flex-col group relative shadow-md"
                   >
                     {/* Listing Image */}
                     <div className="relative aspect-square w-full bg-slate-950 overflow-hidden">
@@ -827,18 +1046,25 @@ export default function App() {
                         onClick={(e) => toggleFavorite(item.id, e)}
                         className={`absolute top-2 right-2 p-1.5 rounded-full backdrop-blur-md transition-all ${
                           favorites.includes(item.id)
-                            ? 'bg-rose-500 text-white'
+                            ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/50'
                             : 'bg-slate-950/60 text-slate-300 hover:text-white'
                         }`}
                       >
                         <Heart className={`w-3.5 h-3.5 ${favorites.includes(item.id) ? 'fill-current' : ''}`} />
                       </button>
 
-                      {/* Video Indicator */}
+                      {/* Video Reel Badge */}
                       {item.videoUrl && (
-                        <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-slate-950/70 backdrop-blur-md text-[10px] text-blue-400 px-1.5 py-0.5 rounded font-bold border border-blue-500/30">
+                        <div
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            watchListingVideo(item);
+                          }}
+                          className="absolute bottom-2 left-2 flex items-center gap-1 bg-gradient-to-r from-rose-600 to-violet-600 text-[10px] text-white px-2 py-0.5 rounded-full font-bold shadow-md hover:scale-105 transition-transform"
+                          title="Смотреть видеообзор в TikTok"
+                        >
                           <Video className="w-3 h-3" />
-                          <span>Видео</span>
+                          <span>TikTok Обзор</span>
                         </div>
                       )}
                     </div>
@@ -852,9 +1078,15 @@ export default function App() {
                         <p className="text-sm font-black text-white mt-0.5">
                           {item.price.toLocaleString('ru-RU')} ₽
                         </p>
+                        {item.delivery && (
+                          <div className="flex items-center gap-1 text-[9px] text-emerald-400 font-medium mt-1">
+                            <Truck className="w-2.5 h-2.5" />
+                            <span>Авито Доставка</span>
+                          </div>
+                        )}
                       </div>
 
-                      <div className="text-[10px] text-slate-400 space-y-0.5 mt-auto">
+                      <div className="text-[10px] text-slate-400 space-y-0.5 mt-auto pt-1 border-t border-slate-800/60">
                         <div className="flex items-center gap-0.5">
                           <MapPin className="w-3 h-3 text-rose-500 shrink-0" />
                           <span className="truncate">{item.location.split(',')[0]}</span>
@@ -873,15 +1105,19 @@ export default function App() {
         {currentTab === 'create' && (
           <div className="p-5 space-y-6">
             <div>
-              <h2 className="text-lg font-black bg-gradient-to-r from-blue-400 to-violet-500 bg-clip-text text-transparent">Разместить объявление</h2>
-              <p className="text-xs text-slate-400">Объявление автоматически получит короткое видео на вкладке ленты!</p>
+              <h2 className="text-lg font-black bg-gradient-to-r from-blue-400 via-indigo-400 to-rose-400 bg-clip-text text-transparent">
+                Разместить объявление
+              </h2>
+              <p className="text-xs text-slate-400 mt-1">
+                Товар появится в каталоге Авито и автоматически попадет в вертикальную видеоленту TikTok!
+              </p>
             </div>
 
             {showCreateSuccess ? (
-              <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-6 rounded-xl text-center space-y-3 animate-pulse">
+              <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-6 rounded-2xl text-center space-y-3 animate-pulse">
                 <Sparkles className="w-12 h-12 mx-auto text-emerald-400" />
                 <h3 className="font-bold text-sm">Объявление успешно опубликовано!</h3>
-                <p className="text-xs text-slate-300">Оно появилось в каталоге Авито и нашей TikTok ленте.</p>
+                <p className="text-xs text-slate-300">Оно уже доступно покупателям в каталоге и ленте видео.</p>
               </div>
             ) : (
               <form onSubmit={handleCreateListing} className="space-y-4">
@@ -895,7 +1131,7 @@ export default function App() {
                     placeholder="Например, Sony PlayStation 5"
                     value={newTitle}
                     onChange={(e) => setNewTitle(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-xs text-white focus:outline-none focus:border-blue-500"
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-blue-500"
                   />
                 </div>
 
@@ -909,7 +1145,7 @@ export default function App() {
                       placeholder="50000"
                       value={newPrice}
                       onChange={(e) => setNewPrice(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-xs text-white focus:outline-none focus:border-blue-500"
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-blue-500"
                     />
                   </div>
                   <div className="space-y-1">
@@ -917,7 +1153,7 @@ export default function App() {
                     <select
                       value={newCategory}
                       onChange={(e) => setNewCategory(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-xs text-white focus:outline-none focus:border-blue-500"
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-blue-500"
                     >
                       {CATEGORIES.filter(c => c !== 'Все').map(cat => (
                         <option key={cat} value={cat}>{cat}</option>
@@ -931,18 +1167,35 @@ export default function App() {
                   <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Описание *</label>
                   <textarea
                     required
-                    rows="4"
+                    rows="3"
                     placeholder="Опишите состояние товара, комплектацию и условия сделки..."
                     value={newDescription}
                     onChange={(e) => setNewDescription(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-xs text-white focus:outline-none focus:border-blue-500 resize-none"
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-blue-500 resize-none"
                   ></textarea>
                 </div>
 
+                {/* Avito Delivery Toggle */}
+                <div className="flex items-center justify-between p-3 bg-slate-900 rounded-xl border border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <Truck className="w-4 h-4 text-emerald-400" />
+                    <div>
+                      <p className="text-xs font-bold text-white">Авито Доставка</p>
+                      <p className="text-[10px] text-slate-400">Безопасная сделка для покупателей по РФ</p>
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={newDelivery}
+                    onChange={(e) => setNewDelivery(e.target.checked)}
+                    className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"
+                  />
+                </div>
+
                 {/* Optional Media Fields */}
-                <div className="p-3 bg-slate-900/60 rounded-xl border border-slate-800/80 space-y-3">
+                <div className="p-3.5 bg-slate-900/60 rounded-xl border border-slate-800 space-y-3">
                   <p className="text-[10px] text-blue-300 font-bold flex items-center gap-1">
-                    <Sparkles className="w-3 h-3" />
+                    <Sparkles className="w-3.5 h-3.5 text-blue-400" />
                     <span>Авто-подбор картинок и видео по категории:</span>
                   </p>
 
@@ -954,7 +1207,7 @@ export default function App() {
                         placeholder="https://..."
                         value={newImage}
                         onChange={(e) => setNewImage(e.target.value)}
-                        className="w-full bg-slate-900/80 border border-slate-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                        className="w-full bg-slate-900/80 border border-slate-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-blue-500"
                       />
                     </div>
                     <div className="space-y-1">
@@ -964,7 +1217,7 @@ export default function App() {
                         placeholder="https://..."
                         value={newVideo}
                         onChange={(e) => setNewVideo(e.target.value)}
-                        className="w-full bg-slate-900/80 border border-slate-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                        className="w-full bg-slate-900/80 border border-slate-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-blue-500"
                       />
                     </div>
                   </div>
@@ -973,7 +1226,7 @@ export default function App() {
                 {/* Submit */}
                 <button
                   type="submit"
-                  className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3.5 rounded-xl text-xs shadow-lg active:scale-95 transition-all flex items-center justify-center gap-1.5"
+                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3.5 rounded-xl text-xs shadow-lg active:scale-95 transition-all flex items-center justify-center gap-1.5"
                 >
                   <PlusCircle className="w-4 h-4" />
                   <span>Подать объявление</span>
@@ -1005,12 +1258,12 @@ export default function App() {
                         <div
                           key={chat.id}
                           onClick={() => setActiveChatId(chat.id)}
-                          className="flex items-center gap-3 p-3 bg-slate-900 rounded-xl cursor-pointer border border-slate-800 hover:border-slate-700 transition-colors"
+                          className="flex items-center gap-3 p-3 bg-slate-900 rounded-2xl cursor-pointer border border-slate-800 hover:border-slate-700 transition-colors shadow-sm"
                         >
                           <img
                             src={chat.seller.avatarUrl}
                             alt={chat.seller.name}
-                            className="w-11 h-11 rounded-full object-cover shrink-0"
+                            className="w-11 h-11 rounded-full object-cover shrink-0 border border-slate-700"
                           />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between">
@@ -1062,7 +1315,7 @@ export default function App() {
                           </div>
                         </div>
                       </div>
-                      <div className="text-right max-w-[120px] truncate">
+                      <div className="text-right max-w-[130px] truncate">
                         <p className="text-[10px] font-bold text-slate-200 truncate">{chat.listingTitle}</p>
                         <p className="text-[10px] text-slate-400">{chat.listingPrice.toLocaleString('ru-RU')} ₽</p>
                       </div>
@@ -1077,10 +1330,10 @@ export default function App() {
                             key={msg.id}
                             className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
                           >
-                            <div className={`max-w-[80%] rounded-xl px-3 py-2 text-xs leading-relaxed ${
+                            <div className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed ${
                               isUser
-                                ? 'bg-blue-600 text-white rounded-br-none'
-                                : 'bg-slate-900 text-slate-100 border border-slate-800 rounded-bl-none'
+                                ? 'bg-blue-600 text-white rounded-br-none shadow-md'
+                                : 'bg-slate-900 text-slate-100 border border-slate-800 rounded-bl-none shadow-sm'
                             }`}>
                               <p>{msg.text}</p>
                               <div className="flex justify-end items-center gap-0.5 mt-1 text-[8px] text-slate-400">
@@ -1093,7 +1346,7 @@ export default function App() {
                       })}
                       {chat.isTyping && (
                         <div className="flex justify-start">
-                          <div className="bg-slate-900 border border-slate-800 rounded-xl rounded-bl-none px-4 py-2.5 flex items-center gap-1.5">
+                          <div className="bg-slate-900 border border-slate-800 rounded-2xl rounded-bl-none px-4 py-2.5 flex items-center gap-1.5 shadow-sm">
                             <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></span>
                             <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:0.2s]"></span>
                             <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:0.4s]"></span>
@@ -1124,10 +1377,11 @@ export default function App() {
                         Скидка будет?
                       </button>
                       <button
-                        onClick={() => sendMessage("Где вам удобно встретиться?")}
-                        className="bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-200 text-[10px] font-semibold px-2.5 py-1.5 rounded-full whitespace-nowrap"
+                        onClick={() => sendMessage("Отправите через Авито Доставку?")}
+                        className="bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-200 text-[10px] font-semibold px-2.5 py-1.5 rounded-full whitespace-nowrap flex items-center gap-1"
                       >
-                        Где забрать?
+                        <Truck className="w-2.5 h-2.5 text-emerald-400" />
+                        <span>Доставка?</span>
                       </button>
                     </div>
 
@@ -1171,7 +1425,7 @@ export default function App() {
               <div className="text-center py-16 text-slate-400 space-y-2">
                 <Heart className="w-12 h-12 text-slate-700 mx-auto" />
                 <p className="font-bold">В избранном пусто</p>
-                <p className="text-xs">Добавляйте понравившиеся объявления, кликая по сердечку!</p>
+                <p className="text-xs">Добавляйте понравившиеся товары или ставьте лайки в ленте TikTok!</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -1179,12 +1433,12 @@ export default function App() {
                   <div
                     key={item.id}
                     onClick={() => setSelectedListing(item)}
-                    className="flex gap-3 bg-slate-900 p-2.5 rounded-xl border border-slate-800 cursor-pointer hover:border-slate-700 transition-colors"
+                    className="flex gap-3 bg-slate-900 p-2.5 rounded-2xl border border-slate-800 cursor-pointer hover:border-slate-700 transition-colors shadow-sm"
                   >
                     <img
                       src={item.imageUrl}
                       alt={item.title}
-                      className="w-20 h-20 object-cover rounded-lg shrink-0 bg-slate-950"
+                      className="w-20 h-20 object-cover rounded-xl shrink-0 bg-slate-950"
                     />
                     <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
                       <div>
@@ -1196,12 +1450,26 @@ export default function App() {
 
                       <div className="flex items-center justify-between text-[10px] text-slate-400">
                         <span className="truncate">{item.location.split(',')[0]}</span>
-                        <button
-                          onClick={(e) => toggleFavorite(item.id, e)}
-                          className="text-rose-500 hover:text-rose-400 p-1 rounded-full hover:bg-slate-800/50"
-                        >
-                          <Heart className="w-4 h-4 fill-current" />
-                        </button>
+                        <div className="flex items-center gap-2">
+                          {item.videoUrl && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                watchListingVideo(item);
+                              }}
+                              className="text-blue-400 hover:text-blue-300 flex items-center gap-0.5"
+                              title="Видео"
+                            >
+                              <Video className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          <button
+                            onClick={(e) => toggleFavorite(item.id, e)}
+                            className="text-rose-500 hover:text-rose-400 p-1 rounded-full hover:bg-slate-800/50"
+                          >
+                            <Heart className="w-4 h-4 fill-current" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1217,7 +1485,7 @@ export default function App() {
       {selectedListing && (
         <div className="absolute inset-0 bg-slate-950/95 z-50 flex flex-col overflow-y-auto no-scrollbar animate-slide-up">
           {/* Header Controls */}
-          <div className="sticky top-0 bg-slate-900 border-b border-slate-800 p-3.5 flex items-center justify-between z-10">
+          <div className="sticky top-0 bg-slate-900 border-b border-slate-800 p-3.5 flex items-center justify-between z-10 shadow-md">
             <button
               onClick={() => setSelectedListing(null)}
               className="flex items-center gap-1.5 text-xs font-bold text-slate-300 hover:text-white bg-slate-800/80 px-3 py-1.5 rounded-full"
@@ -1226,9 +1494,18 @@ export default function App() {
               <span>Назад</span>
             </button>
             <div className="flex items-center gap-2">
+              {selectedListing.videoUrl && (
+                <button
+                  onClick={() => watchListingVideo(selectedListing)}
+                  className="flex items-center gap-1 text-[11px] font-bold bg-gradient-to-r from-rose-600 to-violet-600 text-white px-2.5 py-1.5 rounded-full shadow-md"
+                >
+                  <Video className="w-3.5 h-3.5" />
+                  <span>Видеоролик</span>
+                </button>
+              )}
               <button
                 onClick={(e) => toggleFavorite(selectedListing.id, e)}
-                className={`p-2 rounded-full ${favorites.includes(selectedListing.id) ? 'bg-rose-500 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}
+                className={`p-2 rounded-full ${favorites.includes(selectedListing.id) ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/50' : 'bg-slate-800 text-slate-400 hover:text-white'}`}
               >
                 <Heart className={`w-4 h-4 ${favorites.includes(selectedListing.id) ? 'fill-current' : ''}`} />
               </button>
@@ -1239,14 +1516,25 @@ export default function App() {
           </div>
 
           {/* Content Body */}
-          <div className="p-4 space-y-4 pb-24">
+          <div className="p-4 space-y-4 pb-28">
             {/* Main Picture */}
-            <div className="aspect-[4/3] w-full bg-black rounded-xl overflow-hidden border border-slate-800">
+            <div className="aspect-[4/3] w-full bg-black rounded-2xl overflow-hidden border border-slate-800 relative group">
               <img
                 src={selectedListing.imageUrl}
                 alt={selectedListing.title}
                 className="w-full h-full object-cover"
               />
+              {selectedListing.videoUrl && (
+                <button
+                  onClick={() => watchListingVideo(selectedListing)}
+                  className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity gap-2 text-white font-bold text-xs"
+                >
+                  <div className="w-12 h-12 rounded-full bg-rose-600 flex items-center justify-center shadow-xl">
+                    <Video className="w-6 h-6 text-white" />
+                  </div>
+                  <span>Открыть TikTok видео</span>
+                </button>
+              )}
             </div>
 
             {/* Title, Category & Stats */}
@@ -1272,16 +1560,37 @@ export default function App() {
               </div>
             </div>
 
+            {/* Avito Delivery Info Card */}
+            {selectedListing.delivery && (
+              <div className="p-3 bg-emerald-950/20 border border-emerald-500/30 rounded-xl flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-emerald-500/20 text-emerald-400 rounded-lg">
+                    <Truck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-white">Авито Доставка доступна</p>
+                    <p className="text-[10px] text-slate-400">Проверка при получении, безопасный платёж</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setDeliveryModalListing(selectedListing)}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap"
+                >
+                  Купить с доставкой
+                </button>
+              </div>
+            )}
+
             {/* Detailed Description */}
             <div className="space-y-1">
               <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Описание товара</h3>
-              <p className="text-xs text-slate-200 leading-relaxed bg-slate-900/50 p-3 rounded-lg border border-slate-800">
+              <p className="text-xs text-slate-200 leading-relaxed bg-slate-900/50 p-3 rounded-xl border border-slate-800">
                 {selectedListing.description}
               </p>
             </div>
 
             {/* Seller profile section */}
-            <div className="bg-slate-900 border border-slate-800 p-3 rounded-xl flex items-center justify-between gap-3">
+            <div className="bg-slate-900 border border-slate-800 p-3.5 rounded-2xl flex items-center justify-between gap-3 shadow-sm">
               <div className="flex items-center gap-2.5">
                 <img
                   src={selectedListing.seller.avatarUrl}
@@ -1291,7 +1600,9 @@ export default function App() {
                 <div>
                   <div className="font-bold text-xs flex items-center gap-1.5 text-white">
                     <span>{selectedListing.seller.name}</span>
-                    <span className="text-[10px] text-blue-400 bg-blue-500/10 px-1 rounded">Частное лицо</span>
+                    {selectedListing.seller.verified && (
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                    )}
                   </div>
                   <div className="flex items-center gap-1 text-[10px] text-amber-400 font-bold mt-0.5">
                     <Star className="w-3 h-3 fill-current" />
@@ -1300,11 +1611,32 @@ export default function App() {
                   </div>
                 </div>
               </div>
+
+              <button
+                onClick={(e) => toggleFollowSeller(selectedListing.seller.name, e)}
+                className={`text-[11px] font-bold px-3 py-1.5 rounded-full transition-all flex items-center gap-1 ${
+                  following.includes(selectedListing.seller.name)
+                    ? 'bg-slate-800 text-slate-300 border border-slate-700'
+                    : 'bg-rose-600 hover:bg-rose-500 text-white'
+                }`}
+              >
+                {following.includes(selectedListing.seller.name) ? (
+                  <>
+                    <UserCheck className="w-3 h-3" />
+                    <span>Подписаны</span>
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="w-3 h-3" />
+                    <span>Подписаться</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
 
           {/* Persistent Action footer */}
-          <div className="fixed bottom-0 inset-x-0 bg-slate-900/95 border-t border-slate-800 p-3.5 flex gap-2.5 max-w-md mx-auto z-20 shrink-0">
+          <div className="fixed bottom-0 inset-x-0 bg-slate-900/95 border-t border-slate-800 p-3.5 flex gap-2.5 max-w-md mx-auto z-20 shrink-0 backdrop-blur-md">
             <button
               onClick={() => alert(`Телефон продавца: +7 (999) 123-45-${selectedListing.id}${selectedListing.id}`)}
               className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all border border-slate-700"
@@ -1323,11 +1655,61 @@ export default function App() {
         </div>
       )}
 
-      {/* --- COPY SHARE TOAST BANNER --- */}
+      {/* --- DELIVERY CONFIRMATION MODAL --- */}
+      {deliveryModalListing && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-xs w-full p-5 space-y-4 shadow-2xl animate-slide-up">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-sm text-white flex items-center gap-1.5">
+                <Truck className="w-4 h-4 text-emerald-400" />
+                Оформление доставки
+              </span>
+              <button
+                onClick={() => setDeliveryModalListing(null)}
+                className="text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2">
+              <p className="text-xs font-bold text-white truncate">{deliveryModalListing.title}</p>
+              <p className="text-sm font-black text-white">{deliveryModalListing.price.toLocaleString('ru-RU')} ₽</p>
+              <p className="text-[10px] text-slate-400">Стоимость доставки: <span className="text-emerald-400 font-bold">Бесплатно по акции</span></p>
+            </div>
+
+            <div className="text-[11px] text-slate-300 space-y-1.5">
+              <p className="flex items-center gap-1 text-slate-200 font-medium">
+                <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
+                Безопасная сделка Авито
+              </p>
+              <p className="text-[10px] text-slate-400">
+                Деньги резервируются и перечисляются продавцу только после того, как вы проверите товар в пункте выдачи.
+              </p>
+            </div>
+
+            <button
+              onClick={() => handleOrderDelivery(deliveryModalListing)}
+              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl text-xs shadow-md active:scale-95 transition-all"
+            >
+              Подтвердить заказ ({deliveryModalListing.price.toLocaleString('ru-RU')} ₽)
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* --- NOTIFICATION TOASTS --- */}
       {showShareToast && (
         <div className="absolute top-16 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-xs font-bold px-4 py-2.5 rounded-full shadow-lg z-50 animate-pulse border border-blue-400/30 flex items-center gap-1.5">
           <Sparkles className="w-3.5 h-3.5" />
           <span>Ссылка скопирована в буфер обмена!</span>
+        </div>
+      )}
+
+      {deliveryOrderedToast && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 bg-emerald-600 text-white text-xs font-bold px-4 py-2.5 rounded-full shadow-lg z-50 animate-bounce border border-emerald-400/30 flex items-center gap-1.5">
+          <ShieldCheck className="w-4 h-4 text-white" />
+          <span>Заказ через Авито Доставку оформлен!</span>
         </div>
       )}
 
@@ -1338,12 +1720,12 @@ export default function App() {
         <button
           onClick={() => setCurrentTab('feed')}
           className={`flex flex-col items-center gap-1 transition-all ${
-            currentTab === 'feed' ? 'text-blue-400 font-black scale-105' : 'text-slate-400 hover:text-slate-200'
+            currentTab === 'feed' ? 'text-rose-400 font-black scale-105' : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           <div className="relative">
             <Video className="w-5 h-5" />
-            <span className="absolute -top-1 -right-1 bg-blue-500 w-1.5 h-1.5 rounded-full animate-ping"></span>
+            <span className="absolute -top-1 -right-1 bg-rose-500 w-1.5 h-1.5 rounded-full animate-ping"></span>
           </div>
           <span className="text-[10px]">Лента</span>
         </button>
@@ -1369,7 +1751,7 @@ export default function App() {
             currentTab === 'create' ? 'text-blue-400 font-black scale-105' : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          <div className="bg-blue-600 hover:bg-blue-500 text-white p-1 rounded-full shadow-md">
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white p-1 rounded-full shadow-md">
             <PlusCircle className="w-6 h-6" />
           </div>
           <span className="text-[10px] font-semibold">Создать</span>
@@ -1397,7 +1779,7 @@ export default function App() {
         <button
           onClick={() => setCurrentTab('favorites')}
           className={`flex flex-col items-center gap-1 transition-all ${
-            currentTab === 'favorites' ? 'text-blue-400 font-black scale-105' : 'text-slate-400 hover:text-slate-200'
+            currentTab === 'favorites' ? 'text-rose-400 font-black scale-105' : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           <div className="relative">
