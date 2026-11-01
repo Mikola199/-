@@ -21,7 +21,10 @@ import {
   ChevronUp,
   ChevronDown,
   Info,
-  Check
+  Check,
+  Truck,
+  ShieldCheck,
+  Package
 } from 'lucide-react';
 
 // --- MOCK INITIAL DATA ---
@@ -199,6 +202,9 @@ export default function App() {
     localStorage.setItem('avitok_chats', JSON.stringify(chats));
   }, [chats]);
 
+  // Derived listings with video
+  const feedListings = listings.filter(item => Boolean(item.videoUrl));
+
   // --- GENERAL INTERFACE STATES ---
   const [currentTab, setCurrentTab] = useState('listings'); // 'feed' | 'listings' | 'create' | 'chats' | 'favorites'
   const [searchQuery, setSearchQuery] = useState('');
@@ -209,6 +215,12 @@ export default function App() {
   // Chat Messenger States
   const [activeChatId, setActiveChatId] = useState(null);
   const [messageInput, setMessageInput] = useState('');
+
+  // Delivery Checkout State
+  const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+  const [deliveryMethod, setDeliveryMethod] = useState('boxberry'); // 'boxberry' | 'post' | 'cdek'
+  const [deliveryAddress, setDeliveryAddress] = useState('г. Москва, ул. Арбат, д. 12, кв. 45');
+  const [deliverySuccess, setDeliverySuccess] = useState(false);
 
   // TikTok Feed States
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
@@ -225,6 +237,8 @@ export default function App() {
   const [newCommentText, setNewCommentText] = useState('');
   const [showCommentsDrawer, setShowCommentsDrawer] = useState(false);
   const [showShareToast, setShowShareToast] = useState(false);
+  const [floatingHearts, setFloatingHearts] = useState([]);
+  const lastTapRef = useRef(0);
 
   // Create Listing Form State
   const [newTitle, setNewTitle] = useState('');
@@ -246,6 +260,46 @@ export default function App() {
     }
   }, [chats, activeChatId]);
 
+  // Touch swipe support for video feed
+  const touchStartY = useRef(null);
+
+  const handleTouchStart = (e) => {
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchStartY.current === null) return;
+    const touchEndY = e.changedTouches[0].clientY;
+    const diff = touchStartY.current - touchEndY;
+    const minSwipeDistance = 40;
+
+    if (diff > minSwipeDistance) {
+      // Swiped Up -> Next Video
+      setCurrentVideoIndex((prev) => Math.min(prev + 1, feedListings.length - 1));
+    } else if (diff < -minSwipeDistance) {
+      // Swiped Down -> Prev Video
+      setCurrentVideoIndex((prev) => Math.max(prev - 1, 0));
+    }
+    touchStartY.current = null;
+  };
+
+  // Keyboard navigation for video feed
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (currentTab !== 'feed') return;
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setCurrentVideoIndex((prev) => Math.min(prev + 1, feedListings.length - 1));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setCurrentVideoIndex((prev) => Math.max(prev - 1, 0));
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentTab, feedListings.length]);
+
   // Handle playing/pausing of videos in short feed
   useEffect(() => {
     if (currentTab === 'feed') {
@@ -254,6 +308,7 @@ export default function App() {
         const videoElement = videoRefs.current[index];
         if (videoElement) {
           if (index === currentVideoIndex) {
+            videoElement.currentTime = 0;
             videoElement.play().catch((err) => console.log("Auto-play error:", err));
           } else {
             videoElement.pause();
@@ -268,6 +323,38 @@ export default function App() {
   }, [currentTab, currentVideoIndex]);
 
   // --- ACTIONS ---
+
+  // Trigger double-tap / double-click like animation
+  const triggerHeartAnimation = (clientX, clientY, item) => {
+    const id = Date.now() + Math.random();
+    setFloatingHearts((prev) => [...prev, { id, x: clientX, y: clientY }]);
+    if (!favorites.includes(item.id)) {
+      setFavorites((prev) => [...prev, item.id]);
+    }
+    setTimeout(() => {
+      setFloatingHearts((prev) => prev.filter((h) => h.id !== id));
+    }, 800);
+  };
+
+  const handleVideoClick = (e, item, idx) => {
+    const now = Date.now();
+    const DOUBLE_TAP_DELAY = 300;
+    if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
+      // Double tap detected
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      triggerHeartAnimation(x, y, item);
+      lastTapRef.current = 0;
+    } else {
+      lastTapRef.current = now;
+      const vid = videoRefs.current[idx];
+      if (vid) {
+        if (vid.paused) vid.play();
+        else vid.pause();
+      }
+    }
+  };
 
   // Reset demo data to default state
   const resetDemoData = () => {
@@ -458,9 +545,6 @@ export default function App() {
   // Filtered favorite listings
   const favoriteListings = listings.filter(item => favorites.includes(item.id));
 
-  // Video feed filter
-  const feedListings = listings.filter(item => !!item.videoUrl);
-
   return (
     <div className="flex flex-col h-screen max-w-md mx-auto bg-slate-950 border-x border-slate-800 relative shadow-2xl overflow-hidden font-sans">
 
@@ -532,7 +616,11 @@ export default function App() {
 
         {/* TAB 1: TIKTOK SHORT FEED */}
         {currentTab === 'feed' && (
-          <div className="h-full w-full bg-black relative flex flex-col justify-between overflow-hidden">
+          <div
+            className="h-full w-full bg-black relative flex flex-col justify-between overflow-hidden touch-none"
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+          >
             {feedListings.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8 text-center">
                 <Video className="w-16 h-16 mb-4 text-slate-600 animate-bounce" />
@@ -547,19 +635,24 @@ export default function App() {
                     <div key={item.id} className="absolute inset-0 w-full h-full bg-black flex items-center justify-center">
                       <video
                         ref={(el) => { videoRefs.current[idx] = el; }}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover cursor-pointer select-none"
                         src={item.videoUrl}
                         loop
                         playsInline
                         muted={isMuted}
-                        onClick={() => {
-                          const vid = videoRefs.current[idx];
-                          if (vid) {
-                            if (vid.paused) vid.play();
-                            else vid.pause();
-                          }
-                        }}
+                        onClick={(e) => handleVideoClick(e, item, idx)}
                       />
+
+                      {/* Floating double-tap hearts overlay */}
+                      {floatingHearts.map((heart) => (
+                        <div
+                          key={heart.id}
+                          className="pointer-events-none absolute z-30 animate-heart-pop"
+                          style={{ left: heart.x, top: heart.y }}
+                        >
+                          <Heart className="w-24 h-24 text-rose-500 fill-rose-500 drop-shadow-[0_4px_16px_rgba(244,63,94,0.7)]" />
+                        </div>
+                      ))}
 
                       {/* Header overlay */}
                       <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-20 bg-gradient-to-b from-black/60 to-transparent p-2 rounded-xl">
@@ -834,13 +927,19 @@ export default function App() {
                         <Heart className={`w-3.5 h-3.5 ${favorites.includes(item.id) ? 'fill-current' : ''}`} />
                       </button>
 
-                      {/* Video Indicator */}
-                      {item.videoUrl && (
-                        <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-slate-950/70 backdrop-blur-md text-[10px] text-blue-400 px-1.5 py-0.5 rounded font-bold border border-blue-500/30">
-                          <Video className="w-3 h-3" />
-                          <span>Видео</span>
+                      {/* Video & Delivery Indicators */}
+                      <div className="absolute bottom-2 left-2 flex flex-wrap gap-1">
+                        {item.videoUrl && (
+                          <div className="flex items-center gap-1 bg-slate-950/70 backdrop-blur-md text-[10px] text-blue-400 px-1.5 py-0.5 rounded font-bold border border-blue-500/30">
+                            <Video className="w-3 h-3" />
+                            <span>Видео</span>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1 bg-emerald-950/80 backdrop-blur-md text-[9px] text-emerald-400 px-1.5 py-0.5 rounded font-bold border border-emerald-500/30">
+                          <Truck className="w-2.5 h-2.5" />
+                          <span>Доставка</span>
                         </div>
-                      )}
+                      </div>
                     </div>
 
                     {/* Listing Details */}
@@ -1251,9 +1350,15 @@ export default function App() {
 
             {/* Title, Category & Stats */}
             <div className="space-y-1.5">
-              <span className="text-[10px] font-bold text-blue-400 bg-blue-500/10 px-2.5 py-0.5 rounded-full border border-blue-500/20">
-                {selectedListing.category}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold text-blue-400 bg-blue-500/10 px-2.5 py-0.5 rounded-full border border-blue-500/20">
+                  {selectedListing.category}
+                </span>
+                <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20 flex items-center gap-1">
+                  <Truck className="w-3 h-3" />
+                  <span>Авито Доставка</span>
+                </span>
+              </div>
               <h1 className="text-base font-black text-white leading-snug mt-1.5">
                 {selectedListing.title}
               </h1>
@@ -1270,6 +1375,28 @@ export default function App() {
                   {selectedListing.views} просмотров
                 </span>
               </div>
+            </div>
+
+            {/* Avito Delivery Card Banner */}
+            <div
+              onClick={() => setShowDeliveryModal(true)}
+              className="bg-gradient-to-r from-emerald-950/40 to-blue-950/40 border border-emerald-500/30 rounded-xl p-3 cursor-pointer hover:border-emerald-500/50 transition-all flex items-center justify-between gap-3"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-emerald-500/20 rounded-lg text-emerald-400">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-white flex items-center gap-1">
+                    <span>Купить с доставкой</span>
+                    <span className="text-[9px] bg-emerald-500 text-slate-950 px-1 rounded font-black">БЕЗОПАСНО</span>
+                  </p>
+                  <p className="text-[10px] text-slate-300">Оплата после проверки в пункте выдачи</p>
+                </div>
+              </div>
+              <button className="text-[11px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg whitespace-nowrap shadow-sm">
+                Заказать
+              </button>
             </div>
 
             {/* Detailed Description */}
@@ -1304,21 +1431,177 @@ export default function App() {
           </div>
 
           {/* Persistent Action footer */}
-          <div className="fixed bottom-0 inset-x-0 bg-slate-900/95 border-t border-slate-800 p-3.5 flex gap-2.5 max-w-md mx-auto z-20 shrink-0">
+          <div className="fixed bottom-0 inset-x-0 bg-slate-900/95 border-t border-slate-800 p-3 flex gap-2 max-w-md mx-auto z-20 shrink-0">
             <button
               onClick={() => alert(`Телефон продавца: +7 (999) 123-45-${selectedListing.id}${selectedListing.id}`)}
-              className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all border border-slate-700"
+              className="p-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl text-xs flex items-center justify-center transition-all border border-slate-700"
+              title="Позвонить продавцу"
             >
               <Phone className="w-4 h-4 text-emerald-400" />
-              <span>Позвонить</span>
             </button>
             <button
               onClick={() => startChatWithSeller(selectedListing)}
-              className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-95"
+              className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all border border-slate-700"
             >
-              <MessageSquare className="w-4 h-4" />
+              <MessageSquare className="w-4 h-4 text-blue-400" />
               <span>Написать</span>
             </button>
+            <button
+              onClick={() => setShowDeliveryModal(true)}
+              className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-95"
+            >
+              <Truck className="w-4 h-4" />
+              <span>Купить</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* --- AVITO DELIVERY CHECKOUT MODAL --- */}
+      {showDeliveryModal && selectedListing && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-slide-up">
+          <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-t-2xl sm:rounded-2xl p-5 space-y-4 max-h-[90vh] overflow-y-auto no-scrollbar">
+
+            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <Truck className="w-5 h-5 text-emerald-400" />
+                <h3 className="font-bold text-sm text-white">Оформление Авито Доставки</h3>
+              </div>
+              <button
+                onClick={() => {
+                  setShowDeliveryModal(false);
+                  setDeliverySuccess(false);
+                }}
+                className="p-1 text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {deliverySuccess ? (
+              <div className="py-8 text-center space-y-3">
+                <div className="w-14 h-14 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto border border-emerald-500/40 animate-bounce">
+                  <Check className="w-7 h-7" />
+                </div>
+                <h4 className="font-black text-white text-base">Заказ успешно оформлен!</h4>
+                <p className="text-xs text-slate-300 max-w-xs mx-auto leading-relaxed">
+                  Продавец <strong className="text-white">{selectedListing.seller.name}</strong> получил уведомление и отправит заказ в пункт выдачи.
+                </p>
+                <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800 text-[11px] text-slate-400 space-y-1">
+                  <p>Трек-номер: <span className="text-blue-400 font-mono font-bold">AVT-{selectedListing.id}-9941</span></p>
+                  <p>Адрес: <span className="text-white">{deliveryAddress}</span></p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowDeliveryModal(false);
+                    setDeliverySuccess(false);
+                  }}
+                  className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl text-xs transition-all mt-4"
+                >
+                  Понятно
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Product Summary */}
+                <div className="flex gap-3 bg-slate-950 p-3 rounded-xl border border-slate-800">
+                  <img
+                    src={selectedListing.imageUrl}
+                    alt={selectedListing.title}
+                    className="w-14 h-14 object-cover rounded-lg shrink-0"
+                  />
+                  <div className="flex-1 min-w-0 flex flex-col justify-center">
+                    <p className="text-xs font-bold text-white truncate">{selectedListing.title}</p>
+                    <p className="text-sm font-black text-emerald-400 mt-0.5">
+                      {selectedListing.price.toLocaleString('ru-RU')} ₽
+                    </p>
+                  </div>
+                </div>
+
+                {/* Delivery Service Selection */}
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Способ доставки</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setDeliveryMethod('boxberry')}
+                      className={`p-2.5 rounded-xl border text-center transition-all ${
+                        deliveryMethod === 'boxberry'
+                          ? 'border-emerald-500 bg-emerald-500/10 text-white'
+                          : 'border-slate-800 bg-slate-950 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <Package className="w-4 h-4 mx-auto mb-1 text-emerald-400" />
+                      <p className="text-[11px] font-bold">Boxberry</p>
+                      <p className="text-[9px] text-slate-400">1-2 дня • 299 ₽</p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setDeliveryMethod('cdek')}
+                      className={`p-2.5 rounded-xl border text-center transition-all ${
+                        deliveryMethod === 'cdek'
+                          ? 'border-emerald-500 bg-emerald-500/10 text-white'
+                          : 'border-slate-800 bg-slate-950 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <Truck className="w-4 h-4 mx-auto mb-1 text-emerald-400" />
+                      <p className="text-[11px] font-bold">СДЭК</p>
+                      <p className="text-[9px] text-slate-400">2-3 дня • 349 ₽</p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setDeliveryMethod('post')}
+                      className={`p-2.5 rounded-xl border text-center transition-all ${
+                        deliveryMethod === 'post'
+                          ? 'border-emerald-500 bg-emerald-500/10 text-white'
+                          : 'border-slate-800 bg-slate-950 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <Truck className="w-4 h-4 mx-auto mb-1 text-emerald-400" />
+                      <p className="text-[11px] font-bold">Почта РФ</p>
+                      <p className="text-[9px] text-slate-400">3-5 дней • 199 ₽</p>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Delivery Address */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Пункт выдачи или адрес</label>
+                  <input
+                    type="text"
+                    value={deliveryAddress}
+                    onChange={(e) => setDeliveryAddress(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                {/* Security Guarantee Notice */}
+                <div className="flex items-start gap-2 p-2.5 bg-blue-950/30 border border-blue-500/20 rounded-xl text-[10px] text-blue-300">
+                  <ShieldCheck className="w-4 h-4 shrink-0 text-blue-400 mt-0.5" />
+                  <span>Деньги резервируются на счете и будут переведены продавцу только после того, как вы лично проверите товар.</span>
+                </div>
+
+                {/* Total and Order Button */}
+                <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] text-slate-400">Итого к оплате:</span>
+                    <p className="text-base font-black text-white">
+                      {(selectedListing.price + (deliveryMethod === 'boxberry' ? 299 : deliveryMethod === 'cdek' ? 349 : 199)).toLocaleString('ru-RU')} ₽
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => setDeliverySuccess(true)}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-6 rounded-xl text-xs shadow-lg active:scale-95 transition-all flex items-center gap-1.5"
+                  >
+                    <span>Оплатить заказ</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
           </div>
         </div>
       )}
