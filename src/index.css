@@ -25,6 +25,25 @@
   animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+@keyframes heartPop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.3);
+  }
+  50% {
+    opacity: 0.95;
+    transform: translate(-50%, -50%) scale(1.3);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -60%) scale(1.6);
+  }
+}
+
+.animate-heart-pop {
+  animation: heartPop 0.8s ease-out forwards;
+}
+
 /* Modern styling for active states */
 .active-nav-item {
   color: #3b82f6; /* Tailwind blue-500 */
