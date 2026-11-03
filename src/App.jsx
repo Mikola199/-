@@ -24,7 +24,7 @@ import {
   Check,
   Truck,
   ShieldCheck,
-  SlidersHorizontal
+  Package
 } from 'lucide-react';
 
 // --- MOCK INITIAL DATA ---
@@ -189,11 +189,6 @@ export default function App() {
     return saved ? JSON.parse(saved) : INITIAL_CHATS;
   });
 
-  const [orders, setOrders] = useState(() => {
-    const saved = localStorage.getItem('avitok_orders');
-    return saved ? JSON.parse(saved) : [];
-  });
-
   // Synchronize state to LocalStorage
   useEffect(() => {
     localStorage.setItem('avitok_listings', JSON.stringify(listings));
@@ -207,16 +202,13 @@ export default function App() {
     localStorage.setItem('avitok_chats', JSON.stringify(chats));
   }, [chats]);
 
-  useEffect(() => {
-    localStorage.setItem('avitok_orders', JSON.stringify(orders));
-  }, [orders]);
+  // Derived listings with video
+  const feedListings = listings.filter(item => Boolean(item.videoUrl));
 
   // --- GENERAL INTERFACE STATES ---
   const [currentTab, setCurrentTab] = useState('listings'); // 'feed' | 'listings' | 'create' | 'chats' | 'favorites'
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Все');
-  const [sortBy, setSortBy] = useState('default'); // 'default' | 'price_asc' | 'price_desc' | 'popular'
-  const [onlyWithVideo, setOnlyWithVideo] = useState(false);
   const [selectedListing, setSelectedListing] = useState(null);
   const [showBetaGuide, setShowBetaGuide] = useState(true); // default true for first launch, can toggle
 
@@ -224,14 +216,15 @@ export default function App() {
   const [activeChatId, setActiveChatId] = useState(null);
   const [messageInput, setMessageInput] = useState('');
 
+  // Delivery Checkout State
+  const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+  const [deliveryMethod, setDeliveryMethod] = useState('boxberry'); // 'boxberry' | 'post' | 'cdek'
+  const [deliveryAddress, setDeliveryAddress] = useState('г. Москва, ул. Арбат, д. 12, кв. 45');
+  const [deliverySuccess, setDeliverySuccess] = useState(false);
+
   // TikTok Feed States
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [isMuted, setIsMuted] = useState(true);
-  const [heartAnimation, setHeartAnimation] = useState(null); // { x, y }
-  const lastTapRef = useRef(0);
-  const touchStartYRef = useRef(0);
-  const isScrollingRef = useRef(false);
-
   const [videoComments, setVideoComments] = useState({
     1: [
       { id: 1, user: "Никита", avatar: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100&auto=format&fit=crop&q=80", text: "Аппарат пушка! И ценник адекватный.", date: "2 ч. назад" },
@@ -244,6 +237,8 @@ export default function App() {
   const [newCommentText, setNewCommentText] = useState('');
   const [showCommentsDrawer, setShowCommentsDrawer] = useState(false);
   const [showShareToast, setShowShareToast] = useState(false);
+  const [floatingHearts, setFloatingHearts] = useState([]);
+  const lastTapRef = useRef(0);
 
   // Create Listing Form State
   const [newTitle, setNewTitle] = useState('');
@@ -265,6 +260,46 @@ export default function App() {
     }
   }, [chats, activeChatId]);
 
+  // Touch swipe support for video feed
+  const touchStartY = useRef(null);
+
+  const handleTouchStart = (e) => {
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchStartY.current === null) return;
+    const touchEndY = e.changedTouches[0].clientY;
+    const diff = touchStartY.current - touchEndY;
+    const minSwipeDistance = 40;
+
+    if (diff > minSwipeDistance) {
+      // Swiped Up -> Next Video
+      setCurrentVideoIndex((prev) => Math.min(prev + 1, feedListings.length - 1));
+    } else if (diff < -minSwipeDistance) {
+      // Swiped Down -> Prev Video
+      setCurrentVideoIndex((prev) => Math.max(prev - 1, 0));
+    }
+    touchStartY.current = null;
+  };
+
+  // Keyboard navigation for video feed
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (currentTab !== 'feed') return;
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setCurrentVideoIndex((prev) => Math.min(prev + 1, feedListings.length - 1));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setCurrentVideoIndex((prev) => Math.max(prev - 1, 0));
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentTab, feedListings.length]);
+
   // Handle playing/pausing of videos in short feed
   useEffect(() => {
     if (currentTab === 'feed') {
@@ -273,6 +308,7 @@ export default function App() {
         const videoElement = videoRefs.current[index];
         if (videoElement) {
           if (index === currentVideoIndex) {
+            videoElement.currentTime = 0;
             videoElement.play().catch((err) => console.log("Auto-play error:", err));
           } else {
             videoElement.pause();
@@ -288,96 +324,36 @@ export default function App() {
 
   // --- ACTIONS ---
 
-  // Touch / Wheel handlers for TikTok Vertical Feed
-  const handleTouchStart = (e) => {
-    touchStartYRef.current = e.touches[0].clientY;
-  };
-
-  const handleTouchEnd = (e) => {
-    const touchEndY = e.changedTouches[0].clientY;
-    const diff = touchStartYRef.current - touchEndY;
-    if (Math.abs(diff) > 50) {
-      if (diff > 0 && currentVideoIndex < feedListings.length - 1) {
-        // Swipe up -> next video
-        setCurrentVideoIndex(prev => prev + 1);
-      } else if (diff < 0 && currentVideoIndex > 0) {
-        // Swipe down -> prev video
-        setCurrentVideoIndex(prev => prev - 1);
-      }
+  // Trigger double-tap / double-click like animation
+  const triggerHeartAnimation = (clientX, clientY, item) => {
+    const id = Date.now() + Math.random();
+    setFloatingHearts((prev) => [...prev, { id, x: clientX, y: clientY }]);
+    if (!favorites.includes(item.id)) {
+      setFavorites((prev) => [...prev, item.id]);
     }
+    setTimeout(() => {
+      setFloatingHearts((prev) => prev.filter((h) => h.id !== id));
+    }, 800);
   };
 
-  const handleFeedWheel = (e) => {
-    if (isScrollingRef.current) return;
-    if (e.deltaY > 30 && currentVideoIndex < feedListings.length - 1) {
-      isScrollingRef.current = true;
-      setCurrentVideoIndex(prev => prev + 1);
-      setTimeout(() => { isScrollingRef.current = false; }, 400);
-    } else if (e.deltaY < -30 && currentVideoIndex > 0) {
-      isScrollingRef.current = true;
-      setCurrentVideoIndex(prev => prev - 1);
-      setTimeout(() => { isScrollingRef.current = false; }, 400);
-    }
-  };
-
-  // Double-tap to like on video
-  const handleVideoClick = (e, listingId) => {
+  const handleVideoClick = (e, item, idx) => {
     const now = Date.now();
-    const timeSinceLastTap = now - lastTapRef.current;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    if (timeSinceLastTap < 300) {
-      // Double tap!
-      if (!favorites.includes(listingId)) {
-        setFavorites(prev => [...prev, listingId]);
-      }
-      setHeartAnimation({ x, y, id: Date.now() });
-      setTimeout(() => setHeartAnimation(null), 800);
+    const DOUBLE_TAP_DELAY = 300;
+    if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
+      // Double tap detected
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      triggerHeartAnimation(x, y, item);
       lastTapRef.current = 0;
     } else {
       lastTapRef.current = now;
-      const vid = videoRefs.current[currentVideoIndex];
+      const vid = videoRefs.current[idx];
       if (vid) {
         if (vid.paused) vid.play();
         else vid.pause();
       }
     }
-  };
-
-  // Order Delivery Modal State
-  const [deliveryListing, setDeliveryListing] = useState(null);
-  const [deliveryMethod, setDeliveryMethod] = useState('cdek'); // 'cdek' | 'post'
-  const [deliveryAddress, setDeliveryAddress] = useState('Москва, пункт СДЭК, ул. Тверская 12');
-  const [deliverySuccess, setDeliverySuccess] = useState(false);
-
-  // Call Modal State
-  const [callModalListing, setCallModalListing] = useState(null);
-
-  // Place Delivery Order
-  const handlePlaceOrder = () => {
-    if (!deliveryListing) return;
-    const newOrder = {
-      id: Date.now(),
-      listingId: deliveryListing.id,
-      title: deliveryListing.title,
-      price: deliveryListing.price,
-      imageUrl: deliveryListing.imageUrl,
-      method: deliveryMethod === 'cdek' ? 'СДЭК' : 'Почта России',
-      address: deliveryAddress,
-      status: 'В пути',
-      date: 'Сегодня'
-    };
-
-    setOrders([newOrder, ...orders]);
-    setDeliverySuccess(true);
-
-    setTimeout(() => {
-      setDeliverySuccess(false);
-      setDeliveryListing(null);
-      setSelectedListing(null);
-    }, 1800);
   };
 
   // Reset demo data to default state
@@ -386,11 +362,9 @@ export default function App() {
       localStorage.removeItem('avitok_listings');
       localStorage.removeItem('avitok_favorites');
       localStorage.removeItem('avitok_chats');
-      localStorage.removeItem('avitok_orders');
       setListings(INITIAL_LISTINGS);
       setFavorites([1, 3]);
       setChats(INITIAL_CHATS);
-      setOrders([]);
       setActiveChatId(null);
       alert("Данные успешно сброшены!");
     }
@@ -560,27 +534,16 @@ export default function App() {
     setTimeout(() => setShowShareToast(false), 2000);
   };
 
-  // Filter and sort listings based on query, category, video toggle and sort
-  const filteredListings = listings
-    .filter(item => {
-      const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            item.description.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCategory = selectedCategory === 'Все' || item.category === selectedCategory;
-      const matchesVideo = !onlyWithVideo || Boolean(item.videoUrl);
-      return matchesSearch && matchesCategory && matchesVideo;
-    })
-    .sort((a, b) => {
-      if (sortBy === 'price_asc') return a.price - b.price;
-      if (sortBy === 'price_desc') return b.price - a.price;
-      if (sortBy === 'popular') return (b.views || 0) - (a.views || 0);
-      return b.id - a.id;
-    });
+  // Filter listings based on query and category
+  const filteredListings = listings.filter(item => {
+    const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          item.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = selectedCategory === 'Все' || item.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
 
   // Filtered favorite listings
   const favoriteListings = listings.filter(item => favorites.includes(item.id));
-
-  // Video feed filter
-  const feedListings = listings.filter(item => !!item.videoUrl);
 
   return (
     <div className="flex flex-col h-screen max-w-md mx-auto bg-slate-950 border-x border-slate-800 relative shadow-2xl overflow-hidden font-sans">
@@ -654,10 +617,9 @@ export default function App() {
         {/* TAB 1: TIKTOK SHORT FEED */}
         {currentTab === 'feed' && (
           <div
-            className="h-full w-full bg-black relative flex flex-col justify-between overflow-hidden touch-none select-none"
+            className="h-full w-full bg-black relative flex flex-col justify-between overflow-hidden touch-none"
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
-            onWheel={handleFeedWheel}
           >
             {feedListings.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8 text-center">
@@ -670,32 +632,27 @@ export default function App() {
                 {feedListings.map((item, idx) => {
                   if (idx !== currentVideoIndex) return null;
                   return (
-                    <div
-                      key={item.id}
-                      className="absolute inset-0 w-full h-full bg-black flex items-center justify-center cursor-pointer"
-                      onClick={(e) => handleVideoClick(e, item.id)}
-                    >
+                    <div key={item.id} className="absolute inset-0 w-full h-full bg-black flex items-center justify-center">
                       <video
                         ref={(el) => { videoRefs.current[idx] = el; }}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover cursor-pointer select-none"
                         src={item.videoUrl}
                         loop
                         playsInline
                         muted={isMuted}
+                        onClick={(e) => handleVideoClick(e, item, idx)}
                       />
 
-                      {/* Double Tap Floating Heart */}
-                      {heartAnimation && (
+                      {/* Floating double-tap hearts overlay */}
+                      {floatingHearts.map((heart) => (
                         <div
-                          className="absolute pointer-events-none z-30 animate-heart-pop"
-                          style={{
-                            left: heartAnimation.x - 40,
-                            top: heartAnimation.y - 40
-                          }}
+                          key={heart.id}
+                          className="pointer-events-none absolute z-30 animate-heart-pop"
+                          style={{ left: heart.x, top: heart.y }}
                         >
-                          <Heart className="w-20 h-20 text-rose-500 fill-rose-500 drop-shadow-[0_4px_12px_rgba(244,63,94,0.7)]" />
+                          <Heart className="w-24 h-24 text-rose-500 fill-rose-500 drop-shadow-[0_4px_16px_rgba(244,63,94,0.7)]" />
                         </div>
-                      )}
+                      ))}
 
                       {/* Header overlay */}
                       <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-20 bg-gradient-to-b from-black/60 to-transparent p-2 rounded-xl">
@@ -791,35 +748,19 @@ export default function App() {
                           <span className="truncate">{item.location}</span>
                         </div>
 
-                        {/* Floating Product Link and Fast Delivery */}
-                        <div className="mt-2 flex items-center gap-2">
-                          <button
-                            className="flex-1 flex items-center justify-between bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-3 py-2.5 rounded-lg shadow-lg active:scale-95 transition-all"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedListing(item);
-                            }}
-                          >
-                            <span className="flex items-center gap-1.5">
-                              <ShoppingBag className="w-3.5 h-3.5" />
-                              <span>Подробнее</span>
-                            </span>
-                            <span className="bg-white/20 px-2 py-0.5 rounded text-[11px]">
-                              {item.price.toLocaleString('ru-RU')} ₽
-                            </span>
-                          </button>
-                          <button
-                            className="bg-emerald-600 hover:bg-emerald-500 text-white p-2.5 rounded-lg shadow-lg active:scale-95 transition-all flex items-center gap-1 text-xs font-bold"
-                            title="Купить с доставкой"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeliveryListing(item);
-                            }}
-                          >
-                            <Truck className="w-3.5 h-3.5" />
-                            <span>Купить</span>
-                          </button>
-                        </div>
+                        {/* Floating Product Link */}
+                        <button
+                          className="mt-2 flex items-center justify-between bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-3 py-2.5 rounded-lg shadow-lg active:scale-95 transition-all w-full"
+                          onClick={() => setSelectedListing(item)}
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <ShoppingBag className="w-3.5 h-3.5" />
+                            <span>Купить товар</span>
+                          </span>
+                          <span className="bg-white/20 px-2 py-0.5 rounded text-[11px]">
+                            {item.price.toLocaleString('ru-RU')} ₽
+                          </span>
+                        </button>
                       </div>
 
                       {/* Video scroll navigation arrows */}
@@ -941,7 +882,7 @@ export default function App() {
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all border ${
+                  className={`px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all border ${
                     selectedCategory === cat
                       ? 'bg-blue-600 text-white border-blue-500 shadow-md scale-105'
                       : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700'
@@ -950,35 +891,6 @@ export default function App() {
                   {cat}
                 </button>
               ))}
-            </div>
-
-            {/* Sub-Filters: Sort and Only with Video */}
-            <div className="flex items-center justify-between gap-2 text-xs pt-1">
-              <div className="flex items-center gap-1.5">
-                <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="bg-slate-900 border border-slate-800 text-slate-300 rounded-lg px-2.5 py-1.5 text-[11px] focus:outline-none focus:border-blue-500"
-                >
-                  <option value="default">По умолчанию</option>
-                  <option value="price_asc">Сначала дешевле</option>
-                  <option value="price_desc">Сначала дороже</option>
-                  <option value="popular">По популярности</option>
-                </select>
-              </div>
-
-              <button
-                onClick={() => setOnlyWithVideo(!onlyWithVideo)}
-                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition-colors ${
-                  onlyWithVideo
-                    ? 'bg-blue-600/20 text-blue-400 border-blue-500/40'
-                    : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-300'
-                }`}
-              >
-                <Video className="w-3 h-3" />
-                <span>С видео ({listings.filter(l => Boolean(l.videoUrl)).length})</span>
-              </button>
             </div>
 
             {/* Grid List */}
@@ -1015,16 +927,16 @@ export default function App() {
                         <Heart className={`w-3.5 h-3.5 ${favorites.includes(item.id) ? 'fill-current' : ''}`} />
                       </button>
 
-                      {/* Video and Delivery Indicators */}
-                      <div className="absolute bottom-2 left-2 flex items-center gap-1.5 flex-wrap">
+                      {/* Video & Delivery Indicators */}
+                      <div className="absolute bottom-2 left-2 flex flex-wrap gap-1">
                         {item.videoUrl && (
-                          <div className="flex items-center gap-1 bg-slate-950/80 backdrop-blur-md text-[10px] text-blue-400 px-1.5 py-0.5 rounded font-bold border border-blue-500/30">
+                          <div className="flex items-center gap-1 bg-slate-950/70 backdrop-blur-md text-[10px] text-blue-400 px-1.5 py-0.5 rounded font-bold border border-blue-500/30">
                             <Video className="w-3 h-3" />
                             <span>Видео</span>
                           </div>
                         )}
-                        <div className="flex items-center gap-1 bg-emerald-950/80 backdrop-blur-md text-[10px] text-emerald-400 px-1.5 py-0.5 rounded font-bold border border-emerald-500/30">
-                          <Truck className="w-3 h-3" />
+                        <div className="flex items-center gap-1 bg-emerald-950/80 backdrop-blur-md text-[9px] text-emerald-400 px-1.5 py-0.5 rounded font-bold border border-emerald-500/30">
+                          <Truck className="w-2.5 h-2.5" />
                           <span>Доставка</span>
                         </div>
                       </div>
@@ -1344,49 +1256,15 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 5: FAVORITES & ORDERS */}
+        {/* TAB 5: FAVORITES / LIKED ITEMS */}
         {currentTab === 'favorites' && (
-          <div className="p-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <h2 className="text-base font-black">Избранное</h2>
-                <span className="bg-rose-500/10 text-rose-400 text-xs px-2 py-0.5 rounded-full font-bold">
-                  {favoriteListings.length}
-                </span>
-              </div>
-              {orders.length > 0 && (
-                <span className="text-[11px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                  Заказов: {orders.length}
-                </span>
-              )}
+          <div className="p-4 space-y-3">
+            <div className="flex items-center gap-2 mb-2">
+              <h2 className="text-base font-black">Избранное</h2>
+              <span className="bg-rose-500/10 text-rose-400 text-xs px-2 py-0.5 rounded-full font-bold">
+                {favoriteListings.length}
+              </span>
             </div>
-
-            {/* Orders section if any */}
-            {orders.length > 0 && (
-              <div className="space-y-2">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <Truck className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Мои заказы с доставкой</span>
-                </h3>
-                <div className="space-y-2">
-                  {orders.map(order => (
-                    <div key={order.id} className="bg-slate-900 border border-slate-800 p-2.5 rounded-xl flex items-center justify-between gap-3">
-                      <img src={order.imageUrl} alt={order.title} className="w-12 h-12 rounded-lg object-cover bg-slate-950 shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-white truncate">{order.title}</p>
-                        <p className="text-[10px] text-slate-400 truncate">{order.method} • {order.address}</p>
-                        <p className="text-xs font-black text-emerald-400 mt-0.5">{order.price.toLocaleString('ru-RU')} ₽</p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30">
-                          {order.status}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {favoriteListings.length === 0 ? (
               <div className="text-center py-16 text-slate-400 space-y-2">
@@ -1472,9 +1350,15 @@ export default function App() {
 
             {/* Title, Category & Stats */}
             <div className="space-y-1.5">
-              <span className="text-[10px] font-bold text-blue-400 bg-blue-500/10 px-2.5 py-0.5 rounded-full border border-blue-500/20">
-                {selectedListing.category}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold text-blue-400 bg-blue-500/10 px-2.5 py-0.5 rounded-full border border-blue-500/20">
+                  {selectedListing.category}
+                </span>
+                <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20 flex items-center gap-1">
+                  <Truck className="w-3 h-3" />
+                  <span>Авито Доставка</span>
+                </span>
+              </div>
               <h1 className="text-base font-black text-white leading-snug mt-1.5">
                 {selectedListing.title}
               </h1>
@@ -1491,6 +1375,28 @@ export default function App() {
                   {selectedListing.views} просмотров
                 </span>
               </div>
+            </div>
+
+            {/* Avito Delivery Card Banner */}
+            <div
+              onClick={() => setShowDeliveryModal(true)}
+              className="bg-gradient-to-r from-emerald-950/40 to-blue-950/40 border border-emerald-500/30 rounded-xl p-3 cursor-pointer hover:border-emerald-500/50 transition-all flex items-center justify-between gap-3"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-emerald-500/20 rounded-lg text-emerald-400">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-white flex items-center gap-1">
+                    <span>Купить с доставкой</span>
+                    <span className="text-[9px] bg-emerald-500 text-slate-950 px-1 rounded font-black">БЕЗОПАСНО</span>
+                  </p>
+                  <p className="text-[10px] text-slate-300">Оплата после проверки в пункте выдачи</p>
+                </div>
+              </div>
+              <button className="text-[11px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg whitespace-nowrap shadow-sm">
+                Заказать
+              </button>
             </div>
 
             {/* Detailed Description */}
@@ -1527,170 +1433,175 @@ export default function App() {
           {/* Persistent Action footer */}
           <div className="fixed bottom-0 inset-x-0 bg-slate-900/95 border-t border-slate-800 p-3 flex gap-2 max-w-md mx-auto z-20 shrink-0">
             <button
-              onClick={() => setCallModalListing(selectedListing)}
-              className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all border border-slate-700"
+              onClick={() => alert(`Телефон продавца: +7 (999) 123-45-${selectedListing.id}${selectedListing.id}`)}
+              className="p-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl text-xs flex items-center justify-center transition-all border border-slate-700"
+              title="Позвонить продавцу"
             >
-              <Phone className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Позвонить</span>
+              <Phone className="w-4 h-4 text-emerald-400" />
             </button>
             <button
               onClick={() => startChatWithSeller(selectedListing)}
-              className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-95"
+              className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all border border-slate-700"
             >
-              <MessageSquare className="w-3.5 h-3.5" />
+              <MessageSquare className="w-4 h-4 text-blue-400" />
               <span>Написать</span>
             </button>
             <button
-              onClick={() => setDeliveryListing(selectedListing)}
-              className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-95"
+              onClick={() => setShowDeliveryModal(true)}
+              className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-95"
             >
-              <Truck className="w-3.5 h-3.5" />
-              <span>Купить с доставкой</span>
+              <Truck className="w-4 h-4" />
+              <span>Купить</span>
             </button>
           </div>
         </div>
       )}
 
       {/* --- AVITO DELIVERY CHECKOUT MODAL --- */}
-      {deliveryListing && (
-        <div className="absolute inset-0 bg-slate-950/95 z-50 flex flex-col justify-end p-4 animate-slide-up">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 max-w-sm mx-auto w-full shadow-2xl relative">
-            <button
-              onClick={() => setDeliveryListing(null)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white"
-            >
-              <X className="w-5 h-5" />
-            </button>
+      {showDeliveryModal && selectedListing && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-slide-up">
+          <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-t-2xl sm:rounded-2xl p-5 space-y-4 max-h-[90vh] overflow-y-auto no-scrollbar">
 
-            <div className="flex items-center gap-2 text-emerald-400">
-              <Truck className="w-5 h-5" />
-              <h3 className="font-bold text-sm text-white">Авито Доставка • Безопасная сделка</h3>
+            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <Truck className="w-5 h-5 text-emerald-400" />
+                <h3 className="font-bold text-sm text-white">Оформление Авито Доставки</h3>
+              </div>
+              <button
+                onClick={() => {
+                  setShowDeliveryModal(false);
+                  setDeliverySuccess(false);
+                }}
+                className="p-1 text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
             {deliverySuccess ? (
               <div className="py-8 text-center space-y-3">
-                <div className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto">
-                  <Check className="w-6 h-6 stroke-[3]" />
+                <div className="w-14 h-14 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto border border-emerald-500/40 animate-bounce">
+                  <Check className="w-7 h-7" />
                 </div>
-                <h4 className="font-bold text-base text-white">Заказ успешно оформлен!</h4>
-                <p className="text-xs text-slate-400">
-                  Деньги зарезервированы на безопасном счете до получения товара.
+                <h4 className="font-black text-white text-base">Заказ успешно оформлен!</h4>
+                <p className="text-xs text-slate-300 max-w-xs mx-auto leading-relaxed">
+                  Продавец <strong className="text-white">{selectedListing.seller.name}</strong> получил уведомление и отправит заказ в пункт выдачи.
                 </p>
+                <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800 text-[11px] text-slate-400 space-y-1">
+                  <p>Трек-номер: <span className="text-blue-400 font-mono font-bold">AVT-{selectedListing.id}-9941</span></p>
+                  <p>Адрес: <span className="text-white">{deliveryAddress}</span></p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowDeliveryModal(false);
+                    setDeliverySuccess(false);
+                  }}
+                  className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl text-xs transition-all mt-4"
+                >
+                  Понятно
+                </button>
               </div>
             ) : (
-              <>
-                <div className="flex gap-3 bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+              <div className="space-y-4">
+                {/* Product Summary */}
+                <div className="flex gap-3 bg-slate-950 p-3 rounded-xl border border-slate-800">
                   <img
-                    src={deliveryListing.imageUrl}
-                    alt={deliveryListing.title}
+                    src={selectedListing.imageUrl}
+                    alt={selectedListing.title}
                     className="w-14 h-14 object-cover rounded-lg shrink-0"
                   />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold text-white truncate">{deliveryListing.title}</p>
-                    <p className="text-sm font-black text-white mt-1">
-                      {deliveryListing.price.toLocaleString('ru-RU')} ₽
+                  <div className="flex-1 min-w-0 flex flex-col justify-center">
+                    <p className="text-xs font-bold text-white truncate">{selectedListing.title}</p>
+                    <p className="text-sm font-black text-emerald-400 mt-0.5">
+                      {selectedListing.price.toLocaleString('ru-RU')} ₽
                     </p>
                   </div>
                 </div>
 
+                {/* Delivery Service Selection */}
                 <div className="space-y-2">
                   <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Способ доставки</label>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     <button
-                      onClick={() => setDeliveryMethod('cdek')}
-                      className={`p-2.5 rounded-xl border text-xs font-bold flex flex-col items-center gap-1 transition-all ${
-                        deliveryMethod === 'cdek'
-                          ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400'
-                          : 'border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700'
+                      type="button"
+                      onClick={() => setDeliveryMethod('boxberry')}
+                      className={`p-2.5 rounded-xl border text-center transition-all ${
+                        deliveryMethod === 'boxberry'
+                          ? 'border-emerald-500 bg-emerald-500/10 text-white'
+                          : 'border-slate-800 bg-slate-950 text-slate-400 hover:text-white'
                       }`}
                     >
-                      <span>СДЭК</span>
-                      <span className="text-[10px] font-normal text-slate-400">1-2 дня • 350 ₽</span>
+                      <Package className="w-4 h-4 mx-auto mb-1 text-emerald-400" />
+                      <p className="text-[11px] font-bold">Boxberry</p>
+                      <p className="text-[9px] text-slate-400">1-2 дня • 299 ₽</p>
                     </button>
+
                     <button
-                      onClick={() => setDeliveryMethod('post')}
-                      className={`p-2.5 rounded-xl border text-xs font-bold flex flex-col items-center gap-1 transition-all ${
-                        deliveryMethod === 'post'
-                          ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400'
-                          : 'border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700'
+                      type="button"
+                      onClick={() => setDeliveryMethod('cdek')}
+                      className={`p-2.5 rounded-xl border text-center transition-all ${
+                        deliveryMethod === 'cdek'
+                          ? 'border-emerald-500 bg-emerald-500/10 text-white'
+                          : 'border-slate-800 bg-slate-950 text-slate-400 hover:text-white'
                       }`}
                     >
-                      <span>Почта России</span>
-                      <span className="text-[10px] font-normal text-slate-400">2-4 дня • 280 ₽</span>
+                      <Truck className="w-4 h-4 mx-auto mb-1 text-emerald-400" />
+                      <p className="text-[11px] font-bold">СДЭК</p>
+                      <p className="text-[9px] text-slate-400">2-3 дня • 349 ₽</p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setDeliveryMethod('post')}
+                      className={`p-2.5 rounded-xl border text-center transition-all ${
+                        deliveryMethod === 'post'
+                          ? 'border-emerald-500 bg-emerald-500/10 text-white'
+                          : 'border-slate-800 bg-slate-950 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <Truck className="w-4 h-4 mx-auto mb-1 text-emerald-400" />
+                      <p className="text-[11px] font-bold">Почта РФ</p>
+                      <p className="text-[9px] text-slate-400">3-5 дней • 199 ₽</p>
                     </button>
                   </div>
                 </div>
 
+                {/* Delivery Address */}
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Пункт выдачи</label>
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Пункт выдачи или адрес</label>
                   <input
                     type="text"
                     value={deliveryAddress}
                     onChange={(e) => setDeliveryAddress(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
                   />
                 </div>
 
-                <div className="border-t border-slate-800 pt-3 space-y-1 text-xs">
-                  <div className="flex justify-between text-slate-400">
-                    <span>Товар:</span>
-                    <span>{deliveryListing.price.toLocaleString('ru-RU')} ₽</span>
-                  </div>
-                  <div className="flex justify-between text-slate-400">
-                    <span>Доставка:</span>
-                    <span>{deliveryMethod === 'cdek' ? '350' : '280'} ₽</span>
-                  </div>
-                  <div className="flex justify-between font-bold text-sm text-white pt-1">
-                    <span>Итого к оплате:</span>
-                    <span>{(deliveryListing.price + (deliveryMethod === 'cdek' ? 350 : 280)).toLocaleString('ru-RU')} ₽</span>
-                  </div>
+                {/* Security Guarantee Notice */}
+                <div className="flex items-start gap-2 p-2.5 bg-blue-950/30 border border-blue-500/20 rounded-xl text-[10px] text-blue-300">
+                  <ShieldCheck className="w-4 h-4 shrink-0 text-blue-400 mt-0.5" />
+                  <span>Деньги резервируются на счете и будут переведены продавцу только после того, как вы лично проверите товар.</span>
                 </div>
 
-                <button
-                  onClick={handlePlaceOrder}
-                  className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl text-xs shadow-lg active:scale-95 transition-all flex items-center justify-center gap-1.5"
-                >
-                  <ShieldCheck className="w-4 h-4" />
-                  <span>Оплатить с защитой сделки</span>
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+                {/* Total and Order Button */}
+                <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] text-slate-400">Итого к оплате:</span>
+                    <p className="text-base font-black text-white">
+                      {(selectedListing.price + (deliveryMethod === 'boxberry' ? 299 : deliveryMethod === 'cdek' ? 349 : 199)).toLocaleString('ru-RU')} ₽
+                    </p>
+                  </div>
 
-      {/* --- SAFE CALL MODAL --- */}
-      {callModalListing && (
-        <div className="absolute inset-0 bg-slate-950/90 z-50 flex items-center justify-center p-4 animate-slide-up">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 max-w-xs w-full text-center relative shadow-2xl">
-            <button
-              onClick={() => setCallModalListing(null)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white"
-            >
-              <X className="w-5 h-5" />
-            </button>
-            <div className="w-12 h-12 rounded-full bg-blue-500/10 text-blue-400 flex items-center justify-center mx-auto">
-              <Phone className="w-6 h-6" />
-            </div>
-            <div>
-              <h4 className="font-bold text-sm text-white">Защищённый звонок Авито</h4>
-              <p className="text-xs text-slate-400 mt-1">Продавец: {callModalListing.seller.name}</p>
-            </div>
-            <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-center">
-              <span className="text-base font-black text-blue-400 font-mono tracking-wide">
-                +7 (999) 823-45-{callModalListing.id}0
-              </span>
-              <p className="text-[10px] text-slate-500 mt-1">Номер защищен от спама</p>
-            </div>
-            <button
-              onClick={() => {
-                alert(`Вызов на номер продавца: +7 (999) 823-45-${callModalListing.id}0`);
-                setCallModalListing(null);
-              }}
-              className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 rounded-xl text-xs transition-all"
-            >
-              Вызов
-            </button>
+                  <button
+                    onClick={() => setDeliverySuccess(true)}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-6 rounded-xl text-xs shadow-lg active:scale-95 transition-all flex items-center gap-1.5"
+                  >
+                    <span>Оплатить заказ</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
           </div>
         </div>
       )}
