@@ -23,6 +23,18 @@ import {
   Info,
   Check
 } from 'lucide-react';
+import {
+  createListingShareUrl,
+  getListingIdFromHash,
+  getSharedListingFromHash,
+  isValidChat,
+  isValidFavoriteId,
+  isValidListing,
+  parseListingPrice,
+  readStoredArray,
+  removeStoredValue,
+  writeStoredValue
+} from './storage';
 
 // --- MOCK INITIAL DATA ---
 const INITIAL_LISTINGS = [
@@ -172,31 +184,28 @@ const PRESET_ASSETS = [
 export default function App() {
   // --- LOCALSTORAGE PERSISTENT STATES ---
   const [listings, setListings] = useState(() => {
-    const saved = localStorage.getItem('avitok_listings');
-    return saved ? JSON.parse(saved) : INITIAL_LISTINGS;
+    return readStoredArray('avitok_listings', INITIAL_LISTINGS, isValidListing);
   });
 
   const [favorites, setFavorites] = useState(() => {
-    const saved = localStorage.getItem('avitok_favorites');
-    return saved ? JSON.parse(saved) : [1, 3];
+    return readStoredArray('avitok_favorites', [1, 3], isValidFavoriteId);
   });
 
   const [chats, setChats] = useState(() => {
-    const saved = localStorage.getItem('avitok_chats');
-    return saved ? JSON.parse(saved) : INITIAL_CHATS;
+    return readStoredArray('avitok_chats', INITIAL_CHATS, isValidChat);
   });
 
   // Synchronize state to LocalStorage
   useEffect(() => {
-    localStorage.setItem('avitok_listings', JSON.stringify(listings));
+    writeStoredValue('avitok_listings', listings);
   }, [listings]);
 
   useEffect(() => {
-    localStorage.setItem('avitok_favorites', JSON.stringify(favorites));
+    writeStoredValue('avitok_favorites', favorites);
   }, [favorites]);
 
   useEffect(() => {
-    localStorage.setItem('avitok_chats', JSON.stringify(chats));
+    writeStoredValue('avitok_chats', chats);
   }, [chats]);
 
   // --- GENERAL INTERFACE STATES ---
@@ -225,6 +234,8 @@ export default function App() {
   const [newCommentText, setNewCommentText] = useState('');
   const [showCommentsDrawer, setShowCommentsDrawer] = useState(false);
   const [showShareToast, setShowShareToast] = useState(false);
+  const [shareToastMessage, setShareToastMessage] = useState('');
+  const [createError, setCreateError] = useState('');
 
   // Create Listing Form State
   const [newTitle, setNewTitle] = useState('');
@@ -238,6 +249,19 @@ export default function App() {
   // References
   const videoRefs = useRef({});
   const chatEndRef = useRef(null);
+
+  useEffect(() => {
+    const openSharedListing = () => {
+      const listingId = getListingIdFromHash(window.location.hash);
+      if (listingId === null) return;
+      const listing = listings.find(item => String(item.id) === listingId);
+      setSelectedListing(listing || getSharedListingFromHash(window.location.hash));
+    };
+
+    openSharedListing();
+    window.addEventListener('hashchange', openSharedListing);
+    return () => window.removeEventListener('hashchange', openSharedListing);
+  }, [listings]);
 
   // Scroll to chat bottom on new messages
   useEffect(() => {
@@ -269,12 +293,23 @@ export default function App() {
 
   // --- ACTIONS ---
 
+  const clearSharedListingHash = () => {
+    if (getListingIdFromHash(window.location.hash) !== null) {
+      window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+    }
+  };
+
+  const closeSelectedListing = () => {
+    clearSharedListingHash();
+    setSelectedListing(null);
+  };
+
   // Reset demo data to default state
   const resetDemoData = () => {
     if (window.confirm("Вы уверены, что хотите сбросить все данные до начального состояния?")) {
-      localStorage.removeItem('avitok_listings');
-      localStorage.removeItem('avitok_favorites');
-      localStorage.removeItem('avitok_chats');
+      removeStoredValue('avitok_listings');
+      removeStoredValue('avitok_favorites');
+      removeStoredValue('avitok_chats');
       setListings(INITIAL_LISTINGS);
       setFavorites([1, 3]);
       setChats(INITIAL_CHATS);
@@ -313,7 +348,7 @@ export default function App() {
       setChats([newChat, ...chats]);
       setActiveChatId(newChat.id);
     }
-    setSelectedListing(null);
+    closeSelectedListing();
     setCurrentTab('chats');
   };
 
@@ -379,7 +414,14 @@ export default function App() {
   // Submit New Listing
   const handleCreateListing = (e) => {
     e.preventDefault();
-    if (!newTitle.trim() || !newPrice.trim() || !newDescription.trim()) return;
+    const title = newTitle.trim();
+    const description = newDescription.trim();
+    const price = parseListingPrice(newPrice);
+    if (!title || !description || price === null ||
+        !CATEGORIES.includes(newCategory) || newCategory === 'Все') {
+      setCreateError('Укажите название и описание, выберите категорию и введите целую цену больше нуля.');
+      return;
+    }
 
     const preset = PRESET_ASSETS.find(p => p.category === newCategory) || PRESET_ASSETS[0];
     const finalImage = newImage.trim() || preset.imageUrl;
@@ -387,10 +429,10 @@ export default function App() {
 
     const newListing = {
       id: Date.now(),
-      title: newTitle,
-      price: parseFloat(newPrice),
+      title,
+      price,
       category: newCategory,
-      description: newDescription,
+      description,
       location: "Москва, Центр",
       date: "Только что",
       views: 1,
@@ -406,6 +448,7 @@ export default function App() {
 
     setListings([newListing, ...listings]);
     setShowCreateSuccess(true);
+    setCreateError('');
 
     setNewTitle('');
     setNewPrice('');
@@ -441,8 +484,42 @@ export default function App() {
     setNewCommentText('');
   };
 
-  // Trigger Mock Share Pop-up
-  const triggerShare = () => {
+  const triggerShare = async (listing) => {
+    if (!listing) return;
+    const shareUrl = createListingShareUrl(window.location.href, listing);
+    let copied = false;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+        copied = true;
+      }
+    } catch {
+      // Try the fallback for browsers that deny clipboard access.
+    }
+
+    if (!copied) {
+      const input = document.createElement('textarea');
+      input.value = shareUrl;
+      input.setAttribute('readonly', '');
+      input.style.position = 'fixed';
+      input.style.opacity = '0';
+      document.body.appendChild(input);
+      input.select();
+      try {
+        copied = document.execCommand('copy');
+      } catch {
+        copied = false;
+      } finally {
+        input.remove();
+      }
+    }
+
+    const hasSharedData = getSharedListingFromHash(new URL(shareUrl).hash) !== null;
+    setShareToastMessage(copied
+      ? hasSharedData
+        ? 'Ссылка на объявление скопирована!'
+        : 'Ссылка скопирована; объявление доступно только на этом устройстве.'
+      : 'Не удалось скопировать ссылку.');
     setShowShareToast(true);
     setTimeout(() => setShowShareToast(false), 2000);
   };
@@ -630,7 +707,7 @@ export default function App() {
                         {/* Share */}
                         <button
                           className="flex flex-col items-center gap-1"
-                          onClick={triggerShare}
+                          onClick={() => triggerShare(item)}
                         >
                           <div className="p-3 rounded-full bg-slate-900/70 text-slate-200 hover:bg-slate-800">
                             <Share2 className="w-5 h-5" />
@@ -885,6 +962,9 @@ export default function App() {
               </div>
             ) : (
               <form onSubmit={handleCreateListing} className="space-y-4">
+                {createError && (
+                  <p role="alert" className="text-xs text-rose-400">{createError}</p>
+                )}
 
                 {/* Title */}
                 <div className="space-y-1">
@@ -894,7 +974,10 @@ export default function App() {
                     required
                     placeholder="Например, Sony PlayStation 5"
                     value={newTitle}
-                    onChange={(e) => setNewTitle(e.target.value)}
+                    onChange={(e) => {
+                      setNewTitle(e.target.value);
+                      setCreateError('');
+                    }}
                     className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-xs text-white focus:outline-none focus:border-blue-500"
                   />
                 </div>
@@ -906,9 +989,15 @@ export default function App() {
                     <input
                       type="number"
                       required
+                      min="1"
+                      max="9007199254740991"
+                      step="1"
                       placeholder="50000"
                       value={newPrice}
-                      onChange={(e) => setNewPrice(e.target.value)}
+                      onChange={(e) => {
+                        setNewPrice(e.target.value);
+                        setCreateError('');
+                      }}
                       className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-xs text-white focus:outline-none focus:border-blue-500"
                     />
                   </div>
@@ -934,7 +1023,10 @@ export default function App() {
                     rows="4"
                     placeholder="Опишите состояние товара, комплектацию и условия сделки..."
                     value={newDescription}
-                    onChange={(e) => setNewDescription(e.target.value)}
+                    onChange={(e) => {
+                      setNewDescription(e.target.value);
+                      setCreateError('');
+                    }}
                     className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-xs text-white focus:outline-none focus:border-blue-500 resize-none"
                   ></textarea>
                 </div>
@@ -1219,7 +1311,7 @@ export default function App() {
           {/* Header Controls */}
           <div className="sticky top-0 bg-slate-900 border-b border-slate-800 p-3.5 flex items-center justify-between z-10">
             <button
-              onClick={() => setSelectedListing(null)}
+              onClick={closeSelectedListing}
               className="flex items-center gap-1.5 text-xs font-bold text-slate-300 hover:text-white bg-slate-800/80 px-3 py-1.5 rounded-full"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -1232,7 +1324,7 @@ export default function App() {
               >
                 <Heart className={`w-4 h-4 ${favorites.includes(selectedListing.id) ? 'fill-current' : ''}`} />
               </button>
-              <button onClick={triggerShare} className="p-2 rounded-full bg-slate-800 text-slate-400 hover:text-white">
+              <button onClick={() => triggerShare(selectedListing)} className="p-2 rounded-full bg-slate-800 text-slate-400 hover:text-white">
                 <Share2 className="w-4 h-4" />
               </button>
             </div>
@@ -1327,7 +1419,7 @@ export default function App() {
       {showShareToast && (
         <div className="absolute top-16 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-xs font-bold px-4 py-2.5 rounded-full shadow-lg z-50 animate-pulse border border-blue-400/30 flex items-center gap-1.5">
           <Sparkles className="w-3.5 h-3.5" />
-          <span>Ссылка скопирована в буфер обмена!</span>
+          <span>{shareToastMessage}</span>
         </div>
       )}
 
@@ -1352,7 +1444,7 @@ export default function App() {
         <button
           onClick={() => {
             setCurrentTab('listings');
-            setSelectedListing(null);
+            closeSelectedListing();
           }}
           className={`flex flex-col items-center gap-1 transition-all ${
             currentTab === 'listings' ? 'text-blue-400 font-black scale-105' : 'text-slate-400 hover:text-slate-200'
