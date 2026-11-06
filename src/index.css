@@ -25,6 +25,53 @@
   animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+@keyframes spinSlow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spinSlow 5s linear infinite;
+}
+
+@keyframes heartPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.2) rotate(-15deg);
+  }
+  50% {
+    opacity: 0.95;
+    transform: scale(1.3) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1) translateY(-60px) rotate(15deg);
+  }
+}
+
+.animate-heart-pop {
+  animation: heartPop 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.animate-marquee {
+  display: inline-block;
+  white-space: nowrap;
+  animation: marquee 12s linear infinite;
+}
+
 /* Modern styling for active states */
 .active-nav-item {
   color: #3b82f6; /* Tailwind blue-500 */
