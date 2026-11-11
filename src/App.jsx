@@ -21,7 +21,16 @@ import {
   ChevronUp,
   ChevronDown,
   Info,
-  Check
+  Check,
+  Truck,
+  Disc,
+  Music,
+  UserCheck,
+  UserPlus,
+  SlidersHorizontal,
+  ArrowUpDown,
+  Tag,
+  Copy
 } from 'lucide-react';
 
 // --- MOCK INITIAL DATA ---
@@ -181,6 +190,16 @@ export default function App() {
     return saved ? JSON.parse(saved) : [1, 3];
   });
 
+  const [following, setFollowing] = useState(() => {
+    const saved = localStorage.getItem('avitok_following');
+    return saved ? JSON.parse(saved) : ["Дмитрий"];
+  });
+
+  const [orders, setOrders] = useState(() => {
+    const saved = localStorage.getItem('avitok_orders');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   const [chats, setChats] = useState(() => {
     const saved = localStorage.getItem('avitok_chats');
     return saved ? JSON.parse(saved) : INITIAL_CHATS;
@@ -196,6 +215,14 @@ export default function App() {
   }, [favorites]);
 
   useEffect(() => {
+    localStorage.setItem('avitok_following', JSON.stringify(following));
+  }, [following]);
+
+  useEffect(() => {
+    localStorage.setItem('avitok_orders', JSON.stringify(orders));
+  }, [orders]);
+
+  useEffect(() => {
     localStorage.setItem('avitok_chats', JSON.stringify(chats));
   }, [chats]);
 
@@ -206,9 +233,26 @@ export default function App() {
   const [selectedListing, setSelectedListing] = useState(null);
   const [showBetaGuide, setShowBetaGuide] = useState(true); // default true for first launch, can toggle
 
+  // Catalog Filter & Sorting states
+  const [sortBy, setSortBy] = useState('default'); // 'default' | 'price_asc' | 'price_desc'
+  const [conditionFilter, setConditionFilter] = useState('all'); // 'all' | 'new' | 'used'
+  const [phoneCallModal, setPhoneCallModal] = useState(null);
+  const [copiedPhone, setCopiedPhone] = useState(false);
+
   // Chat Messenger States
   const [activeChatId, setActiveChatId] = useState(null);
   const [messageInput, setMessageInput] = useState('');
+  const [offerPriceInput, setOfferPriceInput] = useState('');
+  const [showOfferDrawer, setShowOfferDrawer] = useState(false);
+
+  // Delivery & Orders States
+  const [deliveryListing, setDeliveryListing] = useState(null);
+  const [deliveryMethod, setDeliveryMethod] = useState('cdek'); // 'cdek' | 'pochta' | 'courier'
+  const [deliveryCity, setDeliveryCity] = useState('Москва, Тверская ул., д. 4 (ПВЗ)');
+  const [deliveryName, setDeliveryName] = useState('Иван Петров');
+  const [deliveryPhone, setDeliveryPhone] = useState('+7 (926) 555-01-23');
+  const [orderSuccessModal, setOrderSuccessModal] = useState(null);
+  const [showOrdersList, setShowOrdersList] = useState(false);
 
   // TikTok Feed States
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
@@ -269,14 +313,71 @@ export default function App() {
 
   // --- ACTIONS ---
 
+  // Heart pop animation state (double tap)
+  const [heartPops, setHeartPops] = useState([]);
+  const lastTapRef = useRef(0);
+  const touchStartYRef = useRef(0);
+
+  // Toggle follow seller
+  const toggleFollow = (sellerName, e) => {
+    if (e) e.stopPropagation();
+    if (following.includes(sellerName)) {
+      setFollowing(following.filter(name => name !== sellerName));
+    } else {
+      setFollowing([...following, sellerName]);
+    }
+  };
+
+  // Open Avito Delivery Checkout
+  const handleOpenDelivery = (listing, e) => {
+    if (e) e.stopPropagation();
+    setDeliveryListing(listing);
+  };
+
+  // Submit Avito Delivery Order
+  const handleCreateOrder = (e) => {
+    e.preventDefault();
+    if (!deliveryListing) return;
+
+    const deliveryFees = { cdek: 350, pochta: 290, courier: 590 };
+    const fee = deliveryFees[deliveryMethod] || 350;
+    const orderNumber = `AV-${Math.floor(100000 + Math.random() * 900000)}`;
+
+    const newOrder = {
+      id: Date.now(),
+      orderNumber,
+      listingId: deliveryListing.id,
+      title: deliveryListing.title,
+      price: deliveryListing.price,
+      deliveryFee: fee,
+      totalAmount: deliveryListing.price + fee,
+      imageUrl: deliveryListing.imageUrl,
+      sellerName: deliveryListing.seller.name,
+      deliveryMethod,
+      deliveryAddress: deliveryCity,
+      recipientName: deliveryName,
+      recipientPhone: deliveryPhone,
+      status: "Оплачен (деньги заморожены)",
+      date: new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
+    };
+
+    setOrders([newOrder, ...orders]);
+    setOrderSuccessModal(newOrder);
+    setDeliveryListing(null);
+  };
+
   // Reset demo data to default state
   const resetDemoData = () => {
     if (window.confirm("Вы уверены, что хотите сбросить все данные до начального состояния?")) {
       localStorage.removeItem('avitok_listings');
       localStorage.removeItem('avitok_favorites');
+      localStorage.removeItem('avitok_following');
+      localStorage.removeItem('avitok_orders');
       localStorage.removeItem('avitok_chats');
       setListings(INITIAL_LISTINGS);
       setFavorites([1, 3]);
+      setFollowing(["Дмитрий"]);
+      setOrders([]);
       setChats(INITIAL_CHATS);
       setActiveChatId(null);
       alert("Данные успешно сброшены!");
@@ -290,6 +391,78 @@ export default function App() {
       setFavorites(favorites.filter(favId => favId !== id));
     } else {
       setFavorites([...favorites, id]);
+    }
+  };
+
+  // Trigger heart pop on double tap/click
+  const handleVideoAreaClick = (e, item) => {
+    const now = Date.now();
+    const DOUBLE_TAP_DELAY = 300;
+    if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
+      // Double tap detected
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX ? e.clientX - rect.left : rect.width / 2;
+      const y = e.clientY ? e.clientY - rect.top : rect.height / 2;
+
+      const heartId = Date.now();
+      setHeartPops(prev => [...prev, { id: heartId, x, y }]);
+      setTimeout(() => {
+        setHeartPops(prev => prev.filter(h => h.id !== heartId));
+      }, 900);
+
+      if (!favorites.includes(item.id)) {
+        setFavorites(prev => [...prev, item.id]);
+      }
+      lastTapRef.current = 0;
+    } else {
+      lastTapRef.current = now;
+      // Single tap: toggle play/pause after timeout if not double tap
+      setTimeout(() => {
+        if (Date.now() - lastTapRef.current >= DOUBLE_TAP_DELAY && lastTapRef.current !== 0) {
+          const vid = videoRefs.current[currentVideoIndex];
+          if (vid) {
+            if (vid.paused) vid.play();
+            else vid.pause();
+          }
+        }
+      }, DOUBLE_TAP_DELAY);
+    }
+  };
+
+  // Touch swipe handling for TikTok vertical scrolling
+  const handleTouchStart = (e) => {
+    touchStartYRef.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e) => {
+    if (feedListings.length <= 1) return;
+    const touchEndY = e.changedTouches[0].clientY;
+    const diff = touchStartYRef.current - touchEndY;
+    const SWIPE_THRESHOLD = 50;
+
+    if (diff > SWIPE_THRESHOLD && currentVideoIndex < feedListings.length - 1) {
+      // Swipe Up -> Next Video
+      setCurrentVideoIndex(prev => prev + 1);
+    } else if (diff < -SWIPE_THRESHOLD && currentVideoIndex > 0) {
+      // Swipe Down -> Prev Video
+      setCurrentVideoIndex(prev => prev - 1);
+    }
+  };
+
+  // Mouse wheel scroll handling for feed
+  const wheelLockRef = useRef(false);
+  const handleWheel = (e) => {
+    if (currentTab !== 'feed' || wheelLockRef.current || feedListings.length <= 1) return;
+    if (Math.abs(e.deltaY) > 30) {
+      wheelLockRef.current = true;
+      if (e.deltaY > 0 && currentVideoIndex < feedListings.length - 1) {
+        setCurrentVideoIndex(prev => prev + 1);
+      } else if (e.deltaY < 0 && currentVideoIndex > 0) {
+        setCurrentVideoIndex(prev => prev - 1);
+      }
+      setTimeout(() => {
+        wheelLockRef.current = false;
+      }, 400);
     }
   };
 
@@ -447,13 +620,21 @@ export default function App() {
     setTimeout(() => setShowShareToast(false), 2000);
   };
 
-  // Filter listings based on query and category
-  const filteredListings = listings.filter(item => {
-    const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          item.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'Все' || item.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  // Filter and sort listings based on query, category, condition, and sort mode
+  const filteredListings = listings
+    .filter(item => {
+      const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            item.description.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesCategory = selectedCategory === 'Все' || item.category === selectedCategory;
+      const isNew = item.title.toLowerCase().includes('новый') || item.description.toLowerCase().includes('запечатан') || item.id === 1 || item.id === 4;
+      const matchesCondition = conditionFilter === 'all' || (conditionFilter === 'new' ? isNew : !isNew);
+      return matchesSearch && matchesCategory && matchesCondition;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'price_asc') return a.price - b.price;
+      if (sortBy === 'price_desc') return b.price - a.price;
+      return 0; // default order
+    });
 
   // Filtered favorite listings
   const favoriteListings = listings.filter(item => favorites.includes(item.id));
@@ -476,7 +657,19 @@ export default function App() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowOrdersList(true)}
+                className="relative p-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition-colors flex items-center gap-1 text-[11px] font-bold"
+                title="Мои заказы с доставкой"
+              >
+                <Truck className="w-3.5 h-3.5 text-blue-400" />
+                <span>Заказы</span>
+                {orders.length > 0 && (
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                )}
+              </button>
+
               <button
                 onClick={() => setShowBetaGuide(!showBetaGuide)}
                 className={`p-1.5 rounded-lg transition-colors flex items-center gap-1 text-[11px] font-bold ${
@@ -532,7 +725,12 @@ export default function App() {
 
         {/* TAB 1: TIKTOK SHORT FEED */}
         {currentTab === 'feed' && (
-          <div className="h-full w-full bg-black relative flex flex-col justify-between overflow-hidden">
+          <div
+            className="h-full w-full bg-black relative flex flex-col justify-between overflow-hidden select-none"
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+            onWheel={handleWheel}
+          >
             {feedListings.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8 text-center">
                 <Video className="w-16 h-16 mb-4 text-slate-600 animate-bounce" />
@@ -543,8 +741,13 @@ export default function App() {
               <div className="h-full w-full relative">
                 {feedListings.map((item, idx) => {
                   if (idx !== currentVideoIndex) return null;
+                  const isFollowingSeller = following.includes(item.seller.name);
                   return (
-                    <div key={item.id} className="absolute inset-0 w-full h-full bg-black flex items-center justify-center">
+                    <div
+                      key={item.id}
+                      className="absolute inset-0 w-full h-full bg-black flex items-center justify-center cursor-pointer"
+                      onClick={(e) => handleVideoAreaClick(e, item)}
+                    >
                       <video
                         ref={(el) => { videoRefs.current[idx] = el; }}
                         className="w-full h-full object-cover"
@@ -552,21 +755,28 @@ export default function App() {
                         loop
                         playsInline
                         muted={isMuted}
-                        onClick={() => {
-                          const vid = videoRefs.current[idx];
-                          if (vid) {
-                            if (vid.paused) vid.play();
-                            else vid.pause();
-                          }
-                        }}
                       />
 
+                      {/* Heart Pop Animation overlay */}
+                      {heartPops.map(hp => (
+                        <div
+                          key={hp.id}
+                          style={{ left: `${hp.x - 40}px`, top: `${hp.y - 40}px` }}
+                          className="absolute pointer-events-none z-30 animate-heart-pop"
+                        >
+                          <Heart className="w-20 h-20 text-rose-500 fill-rose-500 drop-shadow-[0_10px_20px_rgba(244,63,94,0.6)]" />
+                        </div>
+                      ))}
+
                       {/* Header overlay */}
-                      <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-20 bg-gradient-to-b from-black/60 to-transparent p-2 rounded-xl">
+                      <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-20 bg-gradient-to-b from-black/70 via-black/30 to-transparent p-2 rounded-xl">
                         <div className="flex items-center gap-2">
                           <button
                             className="flex items-center gap-1.5 text-xs font-semibold bg-slate-900/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-slate-700/50 text-white"
-                            onClick={() => setCurrentTab('listings')}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCurrentTab('listings');
+                            }}
                           >
                             <ArrowLeft className="w-3.5 h-3.5" />
                             <span>Поиск</span>
@@ -574,42 +784,69 @@ export default function App() {
 
                           <button
                             className="p-1.5 bg-blue-600/80 hover:bg-blue-500 text-white rounded-full backdrop-blur-sm"
-                            onClick={() => setShowBetaGuide(!showBetaGuide)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowBetaGuide(!showBetaGuide);
+                            }}
                           >
                             <Info className="w-3.5 h-3.5" />
                           </button>
                         </div>
 
-                        <button
-                          className="p-2 rounded-full bg-slate-900/80 backdrop-blur-md border border-slate-700/50 text-white"
-                          onClick={() => setIsMuted(!isMuted)}
-                        >
-                          {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] font-bold text-slate-300 bg-black/40 px-2 py-1 rounded-full backdrop-blur-md">
+                            {currentVideoIndex + 1} / {feedListings.length}
+                          </span>
+                          <button
+                            className="p-2 rounded-full bg-slate-900/80 backdrop-blur-md border border-slate-700/50 text-white hover:bg-slate-800"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setIsMuted(!isMuted);
+                            }}
+                          >
+                            {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                          </button>
+                        </div>
                       </div>
 
                       {/* Right Hand Interaction Bar */}
-                      <div className="absolute right-4 bottom-24 flex flex-col items-center gap-6 z-20">
-                        <div className="relative mb-2">
+                      <div className="absolute right-3 bottom-20 flex flex-col items-center gap-5 z-20">
+                        {/* Seller Avatar with Follow Toggle */}
+                        <div className="relative mb-1">
                           <img
                             src={item.seller.avatarUrl}
                             alt={item.seller.name}
-                            className="w-12 h-12 rounded-full border-2 border-blue-500 object-cover"
+                            className="w-12 h-12 rounded-full border-2 border-blue-500 object-cover shadow-lg"
                           />
-                          <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 bg-blue-500 text-[10px] font-bold px-1 rounded-full text-white">
-                            +
-                          </div>
+                          <button
+                            onClick={(e) => toggleFollow(item.seller.name, e)}
+                            className={`absolute -bottom-1.5 left-1/2 -translate-x-1/2 text-[10px] font-bold p-1 rounded-full text-white shadow-md transition-all ${
+                              isFollowingSeller
+                                ? 'bg-emerald-500 hover:bg-emerald-600 scale-90'
+                                : 'bg-rose-500 hover:bg-rose-600 scale-100 animate-pulse'
+                            }`}
+                            title={isFollowingSeller ? "Вы подписаны" : "Подписаться"}
+                          >
+                            {isFollowingSeller ? (
+                              <Check className="w-2.5 h-2.5" />
+                            ) : (
+                              <PlusCircle className="w-2.5 h-2.5" />
+                            )}
+                          </button>
                         </div>
 
                         {/* Likes */}
                         <button
                           className="flex flex-col items-center gap-1 group"
-                          onClick={(e) => toggleFavorite(item.id, e)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleFavorite(item.id, e);
+                          }}
                         >
-                          <div className={`p-3 rounded-full transition-all duration-200 ${favorites.includes(item.id) ? 'bg-rose-500 text-white scale-110' : 'bg-slate-900/70 text-slate-200 hover:bg-slate-800'}`}>
+                          <div className={`p-3 rounded-full transition-all duration-200 shadow-md ${favorites.includes(item.id) ? 'bg-rose-500 text-white scale-110' : 'bg-slate-900/75 text-slate-200 hover:bg-slate-800'}`}>
                             <Heart className={`w-5 h-5 ${favorites.includes(item.id) ? 'fill-current' : ''}`} />
                           </div>
-                          <span className="text-[11px] font-medium text-slate-300">
+                          <span className="text-[11px] font-medium text-slate-200 drop-shadow">
                             {favorites.includes(item.id) ? '1.4к' : '1.3к'}
                           </span>
                         </button>
@@ -617,12 +854,15 @@ export default function App() {
                         {/* Comments */}
                         <button
                           className="flex flex-col items-center gap-1"
-                          onClick={() => setShowCommentsDrawer(true)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowCommentsDrawer(true);
+                          }}
                         >
-                          <div className="p-3 rounded-full bg-slate-900/70 text-slate-200 hover:bg-slate-800">
+                          <div className="p-3 rounded-full bg-slate-900/75 text-slate-200 hover:bg-slate-800 shadow-md">
                             <MessageSquare className="w-5 h-5" />
                           </div>
-                          <span className="text-[11px] font-medium text-slate-300">
+                          <span className="text-[11px] font-medium text-slate-200 drop-shadow">
                             {(videoComments[item.id] || []).length + 4}
                           </span>
                         </button>
@@ -630,59 +870,98 @@ export default function App() {
                         {/* Share */}
                         <button
                           className="flex flex-col items-center gap-1"
-                          onClick={triggerShare}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            triggerShare();
+                          }}
                         >
-                          <div className="p-3 rounded-full bg-slate-900/70 text-slate-200 hover:bg-slate-800">
+                          <div className="p-3 rounded-full bg-slate-900/75 text-slate-200 hover:bg-slate-800 shadow-md">
                             <Share2 className="w-5 h-5" />
                           </div>
-                          <span className="text-[11px] font-medium text-slate-300">Поделиться</span>
+                          <span className="text-[10px] font-medium text-slate-200 drop-shadow">Поделиться</span>
                         </button>
+
+                        {/* Animated Rotating Vinyl Disk */}
+                        <div className="pt-2 flex flex-col items-center">
+                          <div className="w-10 h-10 rounded-full bg-slate-900 border-2 border-slate-700 p-1 flex items-center justify-center animate-spin-slow shadow-xl">
+                            <img
+                              src={item.seller.avatarUrl}
+                              className="w-full h-full rounded-full object-cover"
+                              alt="track"
+                            />
+                          </div>
+                        </div>
                       </div>
 
                       {/* Bottom Context Info Overlay */}
-                      <div className="absolute bottom-4 left-4 right-20 z-20 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-3 rounded-xl flex flex-col gap-2">
+                      <div className="absolute bottom-3 left-3 right-20 z-20 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-3 rounded-xl flex flex-col gap-2">
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-sm text-white">@{item.seller.name}</span>
-                          <span className="text-[10px] text-blue-300 bg-blue-500/20 px-1.5 py-0.5 rounded-md">Рейтинг {item.seller.rating} ★</span>
+                          {isFollowingSeller && (
+                            <span className="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.2 rounded-full font-medium">Подписка</span>
+                          )}
+                          <span className="text-[10px] text-blue-300 bg-blue-500/20 px-1.5 py-0.5 rounded-md font-semibold">Рейтинг {item.seller.rating} ★</span>
                         </div>
 
                         <p className="text-xs text-slate-100 line-clamp-2">
                           {item.title} — {item.description}
                         </p>
 
+                        {/* Audio track ticker marquee */}
+                        <div className="flex items-center gap-1.5 text-[10px] text-slate-300 font-medium">
+                          <Music className="w-3 h-3 text-blue-400 shrink-0" />
+                          <span className="truncate">Оригинальный звук — {item.seller.name} • {item.category}</span>
+                        </div>
+
                         <div className="flex items-center gap-2 text-[11px] text-slate-300">
                           <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
                           <span className="truncate">{item.location}</span>
                         </div>
 
-                        {/* Floating Product Link */}
-                        <button
-                          className="mt-2 flex items-center justify-between bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-3 py-2.5 rounded-lg shadow-lg active:scale-95 transition-all w-full"
-                          onClick={() => setSelectedListing(item)}
-                        >
-                          <span className="flex items-center gap-1.5">
-                            <ShoppingBag className="w-3.5 h-3.5" />
-                            <span>Купить товар</span>
-                          </span>
-                          <span className="bg-white/20 px-2 py-0.5 rounded text-[11px]">
-                            {item.price.toLocaleString('ru-RU')} ₽
-                          </span>
-                        </button>
+                        {/* Product Action Buttons */}
+                        <div className="flex gap-2 mt-1">
+                          <button
+                            className="flex-1 flex items-center justify-center gap-1.5 bg-slate-900/90 hover:bg-slate-800 text-white font-bold text-xs px-2.5 py-2.5 rounded-lg border border-slate-700/80 shadow-lg active:scale-95 transition-all"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedListing(item);
+                            }}
+                          >
+                            <ShoppingBag className="w-3.5 h-3.5 text-blue-400" />
+                            <span>Товар: {item.price.toLocaleString('ru-RU')} ₽</span>
+                          </button>
+
+                          <button
+                            className="flex-1 flex items-center justify-center gap-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs px-2.5 py-2.5 rounded-lg shadow-lg active:scale-95 transition-all border border-blue-400/30"
+                            onClick={(e) => handleOpenDelivery(item, e)}
+                          >
+                            <Truck className="w-3.5 h-3.5 text-sky-200" />
+                            <span>Доставка</span>
+                          </button>
+                        </div>
                       </div>
 
                       {/* Video scroll navigation arrows */}
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-2 z-10">
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 flex flex-col gap-2 z-10">
                         <button
                           disabled={currentVideoIndex === 0}
-                          className="p-1.5 rounded-full bg-slate-900/60 text-slate-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none"
-                          onClick={() => setCurrentVideoIndex(currentVideoIndex - 1)}
+                          className="p-2 rounded-full bg-slate-900/60 text-slate-300 hover:text-white disabled:opacity-20 disabled:pointer-events-none backdrop-blur-sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCurrentVideoIndex(currentVideoIndex - 1);
+                          }}
+                          title="Предыдущее видео"
                         >
                           <ChevronUp className="w-5 h-5" />
                         </button>
                         <button
                           disabled={currentVideoIndex === feedListings.length - 1}
-                          className="p-1.5 rounded-full bg-slate-900/60 text-slate-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none"
-                          onClick={() => setCurrentVideoIndex(currentVideoIndex + 1)}
+                          className="p-2 rounded-full bg-slate-900/60 text-slate-300 hover:text-white disabled:opacity-20 disabled:pointer-events-none backdrop-blur-sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCurrentVideoIndex(currentVideoIndex + 1);
+                          }}
+                          title="Следующее видео"
                         >
                           <ChevronDown className="w-5 h-5" />
                         </button>
@@ -800,6 +1079,45 @@ export default function App() {
               ))}
             </div>
 
+            {/* Sub-filters & Sorting toolbar */}
+            <div className="flex items-center justify-between gap-2 text-xs">
+              {/* Condition filter pills */}
+              <div className="flex items-center bg-slate-900 p-0.5 rounded-lg border border-slate-800 text-[11px]">
+                <button
+                  onClick={() => setConditionFilter('all')}
+                  className={`px-2.5 py-1 rounded-md transition-all ${conditionFilter === 'all' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:text-white'}`}
+                >
+                  Все
+                </button>
+                <button
+                  onClick={() => setConditionFilter('new')}
+                  className={`px-2.5 py-1 rounded-md transition-all ${conditionFilter === 'new' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:text-white'}`}
+                >
+                  Новое
+                </button>
+                <button
+                  onClick={() => setConditionFilter('used')}
+                  className={`px-2.5 py-1 rounded-md transition-all ${conditionFilter === 'used' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:text-white'}`}
+                >
+                  Б/у
+                </button>
+              </div>
+
+              {/* Sorting select */}
+              <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1 text-[11px]">
+                <ArrowUpDown className="w-3.5 h-3.5 text-blue-400" />
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="bg-transparent text-slate-200 focus:outline-none cursor-pointer"
+                >
+                  <option value="default" className="bg-slate-900 text-white">По новизне</option>
+                  <option value="price_asc" className="bg-slate-900 text-white">Дешевле</option>
+                  <option value="price_desc" className="bg-slate-900 text-white">Дороже</option>
+                </select>
+              </div>
+            </div>
+
             {/* Grid List */}
             {filteredListings.length === 0 ? (
               <div className="text-center py-12 text-slate-400">
@@ -834,13 +1152,19 @@ export default function App() {
                         <Heart className={`w-3.5 h-3.5 ${favorites.includes(item.id) ? 'fill-current' : ''}`} />
                       </button>
 
-                      {/* Video Indicator */}
-                      {item.videoUrl && (
-                        <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-slate-950/70 backdrop-blur-md text-[10px] text-blue-400 px-1.5 py-0.5 rounded font-bold border border-blue-500/30">
-                          <Video className="w-3 h-3" />
-                          <span>Видео</span>
+                      {/* Badges Overlay */}
+                      <div className="absolute bottom-2 left-2 flex items-center gap-1.5 flex-wrap">
+                        {item.videoUrl && (
+                          <div className="flex items-center gap-1 bg-slate-950/80 backdrop-blur-md text-[9px] text-blue-400 px-1.5 py-0.5 rounded font-bold border border-blue-500/30">
+                            <Video className="w-2.5 h-2.5" />
+                            <span>Видео</span>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1 bg-indigo-950/80 backdrop-blur-md text-[9px] text-indigo-300 px-1.5 py-0.5 rounded font-bold border border-indigo-500/30">
+                          <Truck className="w-2.5 h-2.5" />
+                          <span>Доставка</span>
                         </div>
-                      )}
+                      </div>
                     </div>
 
                     {/* Listing Details */}
@@ -1103,32 +1427,39 @@ export default function App() {
                       <div ref={chatEndRef} />
                     </div>
 
-                    {/* Quick Response Chips */}
-                    <div className="px-3 py-1.5 bg-slate-900/40 border-t border-slate-800/60 overflow-x-auto no-scrollbar flex gap-1.5 shrink-0">
-                      <button
-                        onClick={() => sendMessage("Здравствуйте! Объявление актуально?")}
-                        className="bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-200 text-[10px] font-semibold px-2.5 py-1.5 rounded-full whitespace-nowrap"
-                      >
-                        Актуально?
-                      </button>
-                      <button
-                        onClick={() => sendMessage("Какое окончательное состояние?")}
-                        className="bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-200 text-[10px] font-semibold px-2.5 py-1.5 rounded-full whitespace-nowrap"
-                      >
-                        Какое состояние?
-                      </button>
-                      <button
-                        onClick={() => sendMessage("Уступите немного в цене?")}
-                        className="bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-200 text-[10px] font-semibold px-2.5 py-1.5 rounded-full whitespace-nowrap"
-                      >
-                        Скидка будет?
-                      </button>
-                      <button
-                        onClick={() => sendMessage("Где вам удобно встретиться?")}
-                        className="bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-200 text-[10px] font-semibold px-2.5 py-1.5 rounded-full whitespace-nowrap"
-                      >
-                        Где забрать?
-                      </button>
+                    {/* Direct Delivery Banner & Quick Response Chips */}
+                    <div className="px-3 py-1.5 bg-slate-900/70 border-t border-slate-800 flex items-center justify-between gap-2 shrink-0">
+                      <div className="overflow-x-auto no-scrollbar flex gap-1.5 py-0.5">
+                        <button
+                          onClick={() => setShowOfferDrawer(true)}
+                          className="bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 text-[10px] font-bold px-2.5 py-1.5 rounded-full whitespace-nowrap flex items-center gap-1"
+                        >
+                          <Tag className="w-3 h-3" />
+                          <span>Предложить цену</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            const relatedListing = listings.find(l => l.id === chat.listingId);
+                            if (relatedListing) handleOpenDelivery(relatedListing);
+                          }}
+                          className="bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/40 text-blue-300 text-[10px] font-bold px-2.5 py-1.5 rounded-full whitespace-nowrap flex items-center gap-1"
+                        >
+                          <Truck className="w-3 h-3" />
+                          <span>Купить с доставкой</span>
+                        </button>
+                        <button
+                          onClick={() => sendMessage("Здравствуйте! Объявление актуально?")}
+                          className="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-[10px] font-medium px-2.5 py-1.5 rounded-full whitespace-nowrap"
+                        >
+                          Актуально?
+                        </button>
+                        <button
+                          onClick={() => sendMessage("Какое окончательное состояние?")}
+                          className="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-[10px] font-medium px-2.5 py-1.5 rounded-full whitespace-nowrap"
+                        >
+                          Какое состояние?
+                        </button>
+                      </div>
                     </div>
 
                     {/* Chat Input Bar */}
@@ -1304,21 +1635,362 @@ export default function App() {
           </div>
 
           {/* Persistent Action footer */}
-          <div className="fixed bottom-0 inset-x-0 bg-slate-900/95 border-t border-slate-800 p-3.5 flex gap-2.5 max-w-md mx-auto z-20 shrink-0">
+          <div className="fixed bottom-0 inset-x-0 bg-slate-900/95 border-t border-slate-800 p-3.5 flex flex-col gap-2 max-w-md mx-auto z-20 shrink-0">
             <button
-              onClick={() => alert(`Телефон продавца: +7 (999) 123-45-${selectedListing.id}${selectedListing.id}`)}
-              className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all border border-slate-700"
+              onClick={(e) => handleOpenDelivery(selectedListing, e)}
+              className="w-full bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 active:scale-95 transition-all border border-blue-400/30"
             >
-              <Phone className="w-4 h-4 text-emerald-400" />
-              <span>Позвонить</span>
+              <Truck className="w-4 h-4 text-sky-200" />
+              <span>Купить с Авито Доставкой</span>
             </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPhoneCallModal(selectedListing)}
+                className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all border border-slate-700"
+              >
+                <Phone className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Позвонить</span>
+              </button>
+              <button
+                onClick={() => startChatWithSeller(selectedListing)}
+                className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all border border-slate-700"
+              >
+                <MessageSquare className="w-3.5 h-3.5 text-blue-400" />
+                <span>Написать</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- AVITO DELIVERY CHECKOUT MODAL --- */}
+      {deliveryListing && (
+        <div className="absolute inset-0 bg-slate-950/95 z-50 flex flex-col justify-end animate-slide-up">
+          <div className="bg-slate-900 border-t border-slate-800 rounded-t-2xl p-4 max-h-[90vh] overflow-y-auto no-scrollbar space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-blue-500/20 text-blue-400">
+                  <Truck className="w-4 h-4" />
+                </div>
+                <h3 className="font-bold text-sm text-white">Авито Доставка</h3>
+              </div>
+              <button
+                onClick={() => setDeliveryListing(null)}
+                className="p-1 rounded-full text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Product summary card */}
+            <div className="flex gap-3 bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+              <img
+                src={deliveryListing.imageUrl}
+                alt={deliveryListing.title}
+                className="w-16 h-16 object-cover rounded-lg shrink-0"
+              />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-white truncate">{deliveryListing.title}</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">Продавец: {deliveryListing.seller.name}</p>
+                <p className="text-sm font-black text-blue-400 mt-1">{deliveryListing.price.toLocaleString('ru-RU')} ₽</p>
+              </div>
+            </div>
+
+            {/* Buyer protection guarantee badge */}
+            <div className="bg-blue-950/30 border border-blue-500/30 p-2.5 rounded-xl flex items-start gap-2">
+              <Check className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+              <div className="text-[11px] text-slate-300">
+                <span className="font-bold text-white">Безопасная сделка:</span> Деньги замораживаются банком и перечисляются продавцу только после того, как вы проверите товар в пункте выдачи.
+              </div>
+            </div>
+
+            <form onSubmit={handleCreateOrder} className="space-y-3.5">
+              {/* Delivery method choice */}
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Способ доставки</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setDeliveryMethod('cdek')}
+                    className={`p-2.5 rounded-xl text-left border flex flex-col justify-between transition-all ${
+                      deliveryMethod === 'cdek'
+                        ? 'bg-blue-600/20 border-blue-500 text-white'
+                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                    }`}
+                  >
+                    <span className="text-xs font-bold">СДЭК</span>
+                    <span className="text-[10px] text-slate-300 mt-1">350 ₽ • 2-3 дня</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setDeliveryMethod('pochta')}
+                    className={`p-2.5 rounded-xl text-left border flex flex-col justify-between transition-all ${
+                      deliveryMethod === 'pochta'
+                        ? 'bg-blue-600/20 border-blue-500 text-white'
+                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                    }`}
+                  >
+                    <span className="text-xs font-bold">Почта РФ</span>
+                    <span className="text-[10px] text-slate-300 mt-1">290 ₽ • 3-5 дней</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setDeliveryMethod('courier')}
+                    className={`p-2.5 rounded-xl text-left border flex flex-col justify-between transition-all ${
+                      deliveryMethod === 'courier'
+                        ? 'bg-blue-600/20 border-blue-500 text-white'
+                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                    }`}
+                  >
+                    <span className="text-xs font-bold">Курьер</span>
+                    <span className="text-[10px] text-slate-300 mt-1">590 ₽ • завтра</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Delivery Address */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Адрес пункта выдачи или доставки *</label>
+                <input
+                  type="text"
+                  required
+                  value={deliveryCity}
+                  onChange={(e) => setDeliveryCity(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              {/* Recipient Details */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400">Получатель (ФИО) *</label>
+                  <input
+                    type="text"
+                    required
+                    value={deliveryName}
+                    onChange={(e) => setDeliveryName(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400">Номер телефона *</label>
+                  <input
+                    type="tel"
+                    required
+                    value={deliveryPhone}
+                    onChange={(e) => setDeliveryPhone(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              {/* Cost summary calculation */}
+              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1.5 text-xs">
+                <div className="flex justify-between text-slate-400">
+                  <span>Стоимость товара:</span>
+                  <span className="text-white">{deliveryListing.price.toLocaleString('ru-RU')} ₽</span>
+                </div>
+                <div className="flex justify-between text-slate-400">
+                  <span>Доставка ({deliveryMethod === 'cdek' ? 'СДЭК' : deliveryMethod === 'pochta' ? 'Почта РФ' : 'Курьер'}):</span>
+                  <span className="text-white">{(deliveryMethod === 'cdek' ? 350 : deliveryMethod === 'pochta' ? 290 : 590).toLocaleString('ru-RU')} ₽</span>
+                </div>
+                <div className="border-t border-slate-800 pt-1.5 flex justify-between font-black text-sm">
+                  <span className="text-white">Итого к оплате:</span>
+                  <span className="text-blue-400">
+                    {(deliveryListing.price + (deliveryMethod === 'cdek' ? 350 : deliveryMethod === 'pochta' ? 290 : 590)).toLocaleString('ru-RU')} ₽
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3.5 rounded-xl text-xs shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
+              >
+                <Check className="w-4 h-4" />
+                <span>Оплатить заказ с защитой</span>
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- ORDER CONFIRMATION SUCCESS MODAL --- */}
+      {orderSuccessModal && (
+        <div className="absolute inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 max-w-sm w-full space-y-4 text-center animate-slide-up">
+            <div className="w-12 h-12 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto">
+              <CheckCheck className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-black text-white">Заказ оформлен!</h3>
+              <p className="text-xs text-blue-400 font-mono mt-1">№ {orderSuccessModal.orderNumber}</p>
+              <p className="text-xs text-slate-300 mt-2">
+                Деньги безопасно зарезервированы. Продавец оповещён и готовит посылку к отправке.
+              </p>
+            </div>
+            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-left text-xs space-y-1">
+              <p className="font-bold text-white truncate">{orderSuccessModal.title}</p>
+              <p className="text-slate-400">Сумма с доставкой: <span className="text-blue-400 font-bold">{orderSuccessModal.totalAmount.toLocaleString('ru-RU')} ₽</span></p>
+              <p className="text-slate-400">Куда: <span className="text-slate-200">{orderSuccessModal.deliveryAddress}</span></p>
+            </div>
             <button
-              onClick={() => startChatWithSeller(selectedListing)}
-              className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-95"
+              onClick={() => setOrderSuccessModal(null)}
+              className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl text-xs transition-all"
             >
-              <MessageSquare className="w-4 h-4" />
-              <span>Написать</span>
+              Отлично
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* --- ORDERS LIST DRAWER / MODAL --- */}
+      {showOrdersList && (
+        <div className="absolute inset-0 bg-slate-950 z-50 flex flex-col animate-slide-up">
+          <div className="sticky top-0 bg-slate-900 border-b border-slate-800 p-3.5 flex items-center justify-between z-10">
+            <div className="flex items-center gap-2">
+              <Truck className="w-4 h-4 text-blue-400" />
+              <h2 className="font-black text-sm text-white">Мои заказы с доставкой ({orders.length})</h2>
+            </div>
+            <button
+              onClick={() => setShowOrdersList(false)}
+              className="p-1 rounded-full text-slate-400 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="flex-1 p-4 overflow-y-auto no-scrollbar space-y-3">
+            {orders.length === 0 ? (
+              <div className="text-center py-16 text-slate-400 space-y-2">
+                <Truck className="w-12 h-12 text-slate-700 mx-auto" />
+                <p className="font-bold">У вас пока нет заказов</p>
+                <p className="text-xs">Нажмите «Купить с Авито Доставкой» на любом товаре, чтобы оформить безопасную покупку!</p>
+              </div>
+            ) : (
+              orders.map(order => (
+                <div key={order.id} className="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-2.5">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="font-mono text-blue-400 font-bold">{order.orderNumber}</span>
+                    <span className="text-slate-400">{order.date}</span>
+                  </div>
+                  <div className="flex gap-2.5 items-center">
+                    <img src={order.imageUrl} className="w-14 h-14 object-cover rounded-lg shrink-0 bg-slate-950" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-xs text-white truncate">{order.title}</p>
+                      <p className="text-[11px] text-slate-400">Продавец: {order.sellerName}</p>
+                      <p className="text-xs font-black text-white mt-0.5">{order.totalAmount.toLocaleString('ru-RU')} ₽</p>
+                    </div>
+                  </div>
+                  <div className="bg-slate-950 p-2 rounded-lg text-[10px] text-slate-300 flex items-center justify-between">
+                    <span className="flex items-center gap-1 text-emerald-400 font-semibold">
+                      <Check className="w-3 h-3" />
+                      {order.status}
+                    </span>
+                    <span className="text-slate-400 truncate max-w-[150px]">{order.deliveryAddress}</span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* --- OFFER PRICE BARGAINING MODAL --- */}
+      {showOfferDrawer && (
+        <div className="absolute inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 max-w-sm w-full space-y-3.5 animate-slide-up">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-sm text-white flex items-center gap-1.5">
+                <Tag className="w-4 h-4 text-indigo-400" />
+                <span>Предложить свою цену</span>
+              </h3>
+              <button onClick={() => setShowOfferDrawer(false)} className="text-slate-400 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-slate-300">
+              Укажите сумму, за которую вы готовы приобрести данный товар. Продавец получит ваше предложение.
+            </p>
+            <div className="space-y-1">
+              <input
+                type="number"
+                placeholder="Например, 85000"
+                value={offerPriceInput}
+                onChange={(e) => setOfferPriceInput(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-indigo-500 font-bold"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowOfferDrawer(false)}
+                className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 py-2.5 rounded-xl text-xs font-semibold"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={() => {
+                  if (offerPriceInput.trim()) {
+                    sendMessage(`Предлагаю купить за ${parseInt(offerPriceInput, 10).toLocaleString('ru-RU')} ₽. Что скажете?`);
+                    setOfferPriceInput('');
+                    setShowOfferDrawer(false);
+                  }
+                }}
+                className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-2.5 rounded-xl text-xs font-bold"
+              >
+                Отправить оффер
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- PHONE CALL MODAL --- */}
+      {phoneCallModal && (
+        <div className="absolute inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 max-w-sm w-full space-y-4 text-center animate-slide-up">
+            <div className="w-12 h-12 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto">
+              <Phone className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-black text-white">{phoneCallModal.seller.name}</h3>
+              <p className="text-xs text-slate-400 mt-0.5">Рейтинг {phoneCallModal.seller.rating} ★ ({phoneCallModal.seller.reviews} отзывов)</p>
+              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 mt-3 flex items-center justify-between">
+                <span className="font-mono text-base font-bold text-emerald-400">
+                  +7 (999) 123-45-{phoneCallModal.id}{phoneCallModal.id}
+                </span>
+                <button
+                  onClick={() => {
+                    navigator.clipboard?.writeText(`+799912345${phoneCallModal.id}${phoneCallModal.id}`);
+                    setCopiedPhone(true);
+                    setTimeout(() => setCopiedPhone(false), 2000);
+                  }}
+                  className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs"
+                  title="Скопировать"
+                >
+                  {copiedPhone ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="text-[10px] text-slate-400 mt-2">
+                Звоните с 9:00 до 22:00 по московскому времени. Скажите, что звоните по объявлению на АвиТок.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPhoneCallModal(null)}
+                className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 py-2.5 rounded-xl text-xs font-semibold"
+              >
+                Закрыть
+              </button>
+              <a
+                href={`tel:+799912345${phoneCallModal.id}${phoneCallModal.id}`}
+                className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5"
+              >
+                <Phone className="w-3.5 h-3.5" />
+                <span>Набрать номер</span>
+              </a>
+            </div>
           </div>
         </div>
       )}
